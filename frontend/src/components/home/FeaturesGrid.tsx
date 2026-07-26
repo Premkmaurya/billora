@@ -32,7 +32,7 @@ export const FeaturesGrid: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="relative bg-cyber-yellow text-dark-text py-28 px-6 md:px-12 curved-top-lg curved-bottom-lg"
+      className="relative bg-cyber-yellow text-dark-text py-28 px-6 md:px-12 curved-bottom-lg"
     >
       <div className="max-w-7xl mx-auto flex flex-col items-center">
         {/* Header */}

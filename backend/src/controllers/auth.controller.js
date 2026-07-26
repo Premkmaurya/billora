@@ -4,7 +4,7 @@ const config = require("../config/config");
 const userModel = require("../models/user.model");
 
 const createToken = (user) => {
-  return jwt.sign({ id: user.id, email: user.email }, config.JWT_SECRET, {
+  return jwt.sign({ id: user.id || user._id, email: user.email }, config.JWT_SECRET, {
     expiresIn: "12h",
   });
 };
@@ -22,16 +22,24 @@ const sendTokenResponse = (res, user) => {
   res.status(200).json({
     success: true,
     user: {
-      id: user.id,
-      name: user.name,
+      id: user.id || user._id,
+      name: user.fullName || user.name || "Store Owner",
       email: user.email,
+      role: user.role || "ADMIN",
     },
   });
 };
 
-
 const signup = async (req, res) => {
-  const { fullName, email, password } = req.body || {};
+  const { fullName, name, email, password } = req.body || {};
+  const displayName = fullName || name;
+
+  if (!email || !password || !displayName) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide all required fields (name, email, password)",
+    });
+  }
 
   const existingUser = await userModel.findOne({ email: email.toLowerCase() });
   if (existingUser) {
@@ -42,7 +50,7 @@ const signup = async (req, res) => {
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const newUser = new userModel({
-    fullName,
+    fullName: displayName,
     email: email.toLowerCase(),
     password: hashedPassword,
   });
@@ -54,6 +62,12 @@ const signup = async (req, res) => {
 
 const login = async (req, res) => {
   const { email, password } = req.body || {};
+
+  if (!email || !password) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Please provide email and password" });
+  }
 
   const user = await userModel.findOne({ email: email.toLowerCase() });
   if (!user) {
@@ -84,9 +98,10 @@ const getUser = (req, res) => {
   return res.status(200).json({
     success: true,
     user: {
-      id: user.id,
-      name: user.name,
+      id: user.id || user._id,
+      name: user.fullName || user.name || "Store Owner",
       email: user.email,
+      role: user.role || "ADMIN",
     },
   });
 };

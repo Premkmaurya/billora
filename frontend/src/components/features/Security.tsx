@@ -39,7 +39,7 @@ export const Security: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="relative bg-cyber-yellow text-dark-text py-28 px-6 md:px-12 curved-top-lg curved-bottom-lg overflow-hidden"
+      className="relative bg-cyber-yellow text-dark-text py-28 px-6 md:px-12 curved-top-lg overflow-hidden"
     >
       <div className="absolute right-[-10%] top-[-10%] w-[60vw] h-[60vw] rounded-full bg-yellow-300 opacity-60 blur-3xl pointer-events-none" />
 

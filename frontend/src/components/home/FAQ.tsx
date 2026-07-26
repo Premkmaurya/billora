@@ -40,7 +40,7 @@ export const FAQ: React.FC = () => {
   return (
     <div
       id="faq"
-      className="relative bg-cyber-yellow text-dark-text py-28 px-6 md:px-12 curved-top-lg curved-bottom-lg"
+      className="relative bg-cyber-yellow text-dark-text py-28 px-6 md:px-12 curved-top-lg"
     >
       <div className="max-w-3xl mx-auto flex flex-col items-center">
         <span className="text-xs uppercase tracking-[0.3em] font-extrabold text-dark-text/70 block mb-3">

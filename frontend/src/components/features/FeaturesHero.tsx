@@ -49,10 +49,10 @@ export const FeaturesHero: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="relative min-h-[70vh] bg-cyber-yellow text-dark-text pt-40 pb-28 px-6 md:px-12 flex flex-col justify-center overflow-hidden curved-bottom-lg"
+      className="relative min-h-[70vh] bg-cyber-yellow text-dark-text pt-40 pb-28 px-6 md:px-12 flex flex-col justify-center overflow-hidden"
     >
       {/* Background blobs */}
-      <div className="absolute right-[-10%] top-[-10%] w-[65vw] h-[65vw] rounded-full bg-yellow-300 opacity-60 blur-3xl pointer-events-none" />
+      <div className="absolute right-[-10%] top-[-10%] w-[65vw] h-[65vw] bg-yellow-300 opacity-60 blur-3xl pointer-events-none" />
 
       <div className="max-w-4xl mx-auto w-full relative z-10 flex flex-col items-center text-center">
         

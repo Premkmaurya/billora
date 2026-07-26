@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ArrowRight, Play } from 'lucide-react';
 import { gsap } from 'gsap';
+import {Link} from 'react-router-dom'
 
 export const CustomerHero: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);

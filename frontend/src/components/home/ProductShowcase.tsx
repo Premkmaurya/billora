@@ -43,7 +43,7 @@ export const ProductShowcase: React.FC = () => {
     <div
       ref={sectionRef}
       id="features"
-      className="relative bg-cyber-yellow text-dark-text py-28 px-6 md:px-12 curved-top-lg curved-bottom-lg"
+      className="relative bg-cyber-yellow text-dark-text py-28 px-6 md:px-12"
     >
       <div className="max-w-7xl mx-auto flex flex-col items-center">
         {/* Header */}

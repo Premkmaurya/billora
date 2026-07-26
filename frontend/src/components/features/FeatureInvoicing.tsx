@@ -38,7 +38,7 @@ export const FeatureInvoicing: React.FC = () => {
     <div
       ref={blockRef}
       id="billing-dive"
-      className="py-32 px-6 md:px-12 bg-cyber-yellow text-dark-text curved-top-lg curved-bottom-lg border-b border-black/5 relative overflow-hidden"
+      className="py-32 px-6 md:px-12 bg-cyber-yellow text-dark-text curved-bottom-lg border-b border-black/5 relative overflow-hidden"
     >
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
         
