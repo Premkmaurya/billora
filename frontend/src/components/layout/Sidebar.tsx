@@ -33,7 +33,6 @@ export const Sidebar: React.FC = () => {
     { name: 'Products', path: ROUTES.PRODUCTS, icon: Package },
     { name: 'Customers', path: ROUTES.CUSTOMERS, icon: Users },
     { name: 'Categories', path: ROUTES.CATEGORIES, icon: Tags },
-    { name: 'Organization', path: ROUTES.ORGANIZATION, icon: Building2 },
     { name: 'Settings', path: ROUTES.SETTINGS, icon: Settings },
   ];
 

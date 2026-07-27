@@ -4,9 +4,30 @@ const businessController = require("../controllers/business.controller");
 const { protect, authorizeRoles } = require("../middlewares/auth.middleware");
 const { businessValidation } = require("../middlewares/validation.middleware");
 
-router.get("/", protect, businessController.getBusiness);
-router.post("/", protect, authorizeRoles("owner", "manager"), businessValidation, businessController.createBusiness);
-router.patch("/", protect, authorizeRoles("owner", "manager"), businessValidation, businessController.updateBusiness);
-router.delete("/", protect, authorizeRoles("owner", "manager"), businessController.deleteBusiness);
+router.get(
+  "/",
+  protect,
+  authorizeRoles("owner", "manager"),
+  businessController.getBusiness,
+);
+router.post(
+  "/",
+  protect,
+  businessValidation,
+  businessController.createBusiness,
+);
+router.patch(
+  "/",
+  protect,
+  authorizeRoles("owner", "manager"),
+  businessValidation,
+  businessController.updateBusiness,
+);
+router.delete(
+  "/",
+  protect,
+  authorizeRoles("owner", "manager"),
+  businessController.deleteBusiness,
+);
 
 module.exports = router;

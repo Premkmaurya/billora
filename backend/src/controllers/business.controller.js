@@ -1,4 +1,5 @@
 const Business = require("../models/business.model");
+const userModel = require("../models/user.model");
 
 const getBusiness = async (req, res) => {
   try {
@@ -36,6 +37,16 @@ const createBusiness = async (req, res) => {
 
     const business = await Business.create(req.body);
 
+    await userModel.findOneAndUpdate(
+      { _id: req.user.id },
+      {
+        $set: {
+          role: "owner",
+          organizationId: business._id,
+        },
+      },
+    );
+
     return res.status(201).json({
       success: true,
       message: "Business profile created successfully",
@@ -55,7 +66,7 @@ const updateBusiness = async (req, res) => {
     const business = await Business.findOneAndUpdate(
       {},
       { $set: req.body },
-      { new: true, runValidators: true, upsert: true }
+      { new: true, runValidators: true, upsert: true },
     );
 
     return res.status(200).json({

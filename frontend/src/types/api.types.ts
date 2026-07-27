@@ -1,4 +1,5 @@
 export interface ApiResponse<T = unknown> {
+  gstin: string;
   success: boolean;
   message?: string;
   data: T;

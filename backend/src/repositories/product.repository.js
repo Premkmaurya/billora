@@ -16,7 +16,7 @@ const buildProductQuery = async ({ organizationId, search, categoryId, isActive 
     const searchable = search.trim();
     const matchingCategories = await Category.find({
       organizationId,
-      $or: [{ name: { $regex: searchable, $options: "i" } }, { slug: { $regex: searchable, $options: "i" } }],
+      $or: [{ name: { $regex: searchable, $options: "i" } }],
     }).select("_id");
 
     const categoryIds = matchingCategories.map((item) => item._id);
@@ -46,7 +46,7 @@ const findProducts = async ({ organizationId, search, categoryId, isActive, page
       .sort(sort)
       .skip(skip)
       .limit(limit)
-      .populate("categoryId", "name slug"),
+      .populate("categoryId", "name"),
     Product.countDocuments(query),
   ]);
 
@@ -62,7 +62,7 @@ const findProducts = async ({ organizationId, search, categoryId, isActive, page
 };
 
 const findProductById = async ({ id, organizationId }) => {
-  return Product.findOne({ _id: id, organizationId }).populate("categoryId", "name slug");
+  return Product.findOne({ _id: id, organizationId }).populate("categoryId", "name");
 };
 
 const createProduct = async (payload) => {

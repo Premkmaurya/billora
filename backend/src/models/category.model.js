@@ -7,13 +7,6 @@ const categorySchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    slug: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-      unique: true,
-    },
     description: {
       type: String,
       trim: true,
@@ -34,7 +27,7 @@ const categorySchema = new mongoose.Schema(
   }
 );
 
-categorySchema.index({ organizationId: 1, slug: 1 }, { unique: true });
+categorySchema.index({ organizationId: 1}, { unique: true });
 
 const Category = mongoose.model("Category", categorySchema);
 

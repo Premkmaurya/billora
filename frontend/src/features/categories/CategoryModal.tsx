@@ -53,7 +53,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, c
   const onSubmit = async (data: CategoryFormData) => {
     try {
       if (isEditing && category) {
-        await updateCategory({ id: category.id, data }).unwrap();
+        await updateCategory({ id: category._id, data }).unwrap();
         notifySuccess('Category Updated', `Updated "${data.name}"`);
       } else {
         await createCategory(data as CreateCategoryData).unwrap();

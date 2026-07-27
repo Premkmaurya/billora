@@ -33,9 +33,10 @@ export const ProductList: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  const products = data?.data?.items || [];
-  const totalPages = data?.data?.totalPages || 1;
-  const categories = categoryData?.data || [];
+
+  const products = data?.data?.products || [];
+  const totalPages = data?.data?.pagination || 1;
+  const categories = categoryData?.categories || [];
 
   const handleOpenCreate = () => {
     setSelectedProduct(null);
@@ -134,7 +135,7 @@ export const ProductList: React.FC = () => {
                 {products.map((product) => {
                   const isLowStock = product.stock <= (product.minStockAlert || 5);
                   return (
-                    <tr key={product.id} className="hover:bg-white/[0.02] transition-colors">
+                    <tr key={product._id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="py-4 px-6">
                         <div className="font-bold text-white text-sm">{product.name}</div>
                         <span className="text-[10px] text-gray-500 font-mono">Unit: {product.unit}</span>
@@ -149,7 +150,7 @@ export const ProductList: React.FC = () => {
                         {product.categoryName || 'Uncategorized'}
                       </td>
                       <td className="py-4 px-4 font-bold text-white">
-                        {formatCurrency(product.price)}
+                        {formatCurrency(product.sellingPrice)}
                       </td>
                       <td className="py-4 px-4">
                         <span

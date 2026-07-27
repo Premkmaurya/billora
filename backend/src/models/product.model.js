@@ -7,13 +7,6 @@ const productSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    normalizedName: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-      index: true,
-    },
     sku: {
       type: String,
       trim: true,
@@ -87,7 +80,6 @@ const productSchema = new mongoose.Schema(
 
 productSchema.index({ organizationId: 1, sku: 1 }, { unique: true, sparse: true });
 productSchema.index({ barcode: 1 });
-productSchema.index({ normalizedName: 1 });
 
 const Product = mongoose.model("Product", productSchema);
 

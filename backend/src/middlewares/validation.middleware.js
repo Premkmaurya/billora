@@ -80,12 +80,6 @@ const categoryValidation = [
     .trim()
     .notEmpty()
     .withMessage("Category name is required"),
-  body("slug")
-    .trim()
-    .notEmpty()
-    .withMessage("Category slug is required")
-    .matches(/^[a-z0-9-]+$/)
-    .withMessage("Slug must be lowercase letters, numbers, or hyphens"),
   body("description")
     .optional({ values: "falsy" })
     .trim()

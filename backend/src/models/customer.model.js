@@ -7,13 +7,6 @@ const customerSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    normalizedName: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-      index: true,
-    },
     phone: {
       type: String,
       required: true,
@@ -52,7 +45,6 @@ const customerSchema = new mongoose.Schema(
 );
 
 customerSchema.index({ organizationId: 1, phone: 1 }, { unique: true });
-customerSchema.index({ normalizedName: 1 });
 customerSchema.index({ phone: 1 });
 
 const Customer = mongoose.model("Customer", customerSchema);

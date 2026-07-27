@@ -20,6 +20,16 @@ const orgSchema = z.object({
 
 type OrgFormData = z.infer<typeof orgSchema>;
 
+type OrganizationData = {
+  businessName: string;
+  gstin?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  currency: string;
+  taxRate: number;
+};
+
 export const OrganizationSettings: React.FC = () => {
   const { data, isLoading } = useGetOrganizationQuery();
   const [updateOrg, { isLoading: isSaving }] = useUpdateOrganizationMutation();
@@ -38,16 +48,17 @@ export const OrganizationSettings: React.FC = () => {
     },
   });
 
+
   useEffect(() => {
-    if (data?.data) {
+    if (data?.business) {
       reset({
-        name: data.data.name || '',
-        gstin: data.data.gstin || '',
-        address: data.data.address || '',
-        phone: data.data.phone || '',
-        email: data.data.email || '',
-        currency: data.data.currency || 'INR',
-        taxRate: data.data.taxRate ?? 18,
+        name: data.business.businessName || '',
+        gstin: data.business.gstin || '',
+        address: data.business.address || '',
+        phone: data.business.phone || '',
+        email: data.business.email || '',
+        currency: data.business.currency || 'INR',
+        taxRate: data.business.taxRate ?? 18,
       });
     }
   }, [data, reset]);

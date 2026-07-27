@@ -22,7 +22,7 @@ app.use(
 app.use(morgan("dev"));
 
 app.use("/api/auth", authRoutes);
-app.use("/api/business", businessRoutes);
+app.use("/api/organization", businessRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/customers", customerRoutes);

@@ -31,8 +31,9 @@ export const CustomerList: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
-  const customers = data?.data?.items || [];
-  const totalPages = data?.data?.totalPages || 1;
+
+  const customers = data?.data?.customers || [];
+  const totalPages = data?.data?.pagination || 1;
 
   const handleOpenCreate = () => {
     setSelectedCustomer(null);

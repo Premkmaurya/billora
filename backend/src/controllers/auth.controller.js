@@ -4,9 +4,13 @@ const config = require("../config/config");
 const userModel = require("../models/user.model");
 
 const createToken = (user) => {
-  return jwt.sign({ id: user.id || user._id, email: user.email }, config.JWT_SECRET, {
-    expiresIn: "12h",
-  });
+  return jwt.sign(
+    { id: user.id || user._id, email: user.email },
+    config.JWT_SECRET,
+    {
+      expiresIn: "12h",
+    },
+  );
 };
 
 const sendTokenResponse = (res, user) => {
@@ -118,9 +122,45 @@ const logout = (req, res) => {
     .json({ success: true, message: "Logged out successfully" });
 };
 
+const update = async (req, res) => {
+  const user = req.user;
+  if (!user) {
+    return res
+      .status(401)
+      .json({ success: false, message: "Not authenticated" });
+  }
+
+  try {
+    await userModel.updateOne(
+      { _id: user._id },
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "User updated successfully",
+      user: {
+        id: user.id || user._id,
+        name: user.fullName || user.name || "Store Owner",
+        email: user.email,
+        role: user.role || "ADMIN",
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update user role",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   signup,
   login,
   getUser,
+  update,
   logout,
 };

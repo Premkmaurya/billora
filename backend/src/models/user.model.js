@@ -14,9 +14,22 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
     },
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Business",
+    },
     role: {
       type: String,
-      enum: ["owner", "manager", "cashier", "user", "ADMIN", "MANAGER", "CASHIER", "STAFF"],
+      enum: [
+        "owner",
+        "manager",
+        "cashier",
+        "user",
+        "ADMIN",
+        "MANAGER",
+        "CASHIER",
+        "STAFF",
+      ],
       default: "owner",
     },
   },

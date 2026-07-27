@@ -8,6 +8,8 @@ router.post('/register', signupValidation, authController.signup);
 
 router.post('/login', loginValidation, authController.login);
 
+router.patch('/update', protect, authController.update);
+
 router.get('/me', protect, authController.getUser);
 
 router.all('/logout', authController.logout);

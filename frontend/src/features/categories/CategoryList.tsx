@@ -1,22 +1,27 @@
-import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Tags } from 'lucide-react';
-import { useGetCategoriesQuery, useDeleteCategoryMutation } from '../../services/categoryApi';
-import type { Category } from '../../types/category.types';
-import { CategoryModal } from './CategoryModal';
-import { PageHeader } from '../../components/shared/PageHeader';
-import { TableSkeleton } from '../../components/shared/Skeleton';
-import { EmptyState } from '../../components/shared/EmptyState';
-import { ErrorState } from '../../components/shared/ErrorState';
-import { notifySuccess } from '../../utils/notifications';
+import React, { useState } from "react";
+import { Plus, Edit2, Trash2, Tags } from "lucide-react";
+import {
+  useGetCategoriesQuery,
+  useDeleteCategoryMutation,
+} from "../../services/categoryApi";
+import type { Category } from "../../types/category.types";
+import { CategoryModal } from "./CategoryModal";
+import { PageHeader } from "../../components/shared/PageHeader";
+import { TableSkeleton } from "../../components/shared/Skeleton";
+import { EmptyState } from "../../components/shared/EmptyState";
+import { ErrorState } from "../../components/shared/ErrorState";
+import { notifySuccess } from "../../utils/notifications";
 
 export const CategoryList: React.FC = () => {
   const { data, isLoading, isError, refetch } = useGetCategoriesQuery();
   const [deleteCategory] = useDeleteCategoryMutation();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null,
+  );
 
-  const categories = data?.data || [];
+  const categories = data?.categories || [];
 
   const handleOpenCreate = () => {
     setSelectedCategory(null);
@@ -29,10 +34,14 @@ export const CategoryList: React.FC = () => {
   };
 
   const handleDelete = async (category: Category) => {
-    if (window.confirm(`Are you sure you want to delete category "${category.name}"?`)) {
+    if (
+      window.confirm(
+        `Are you sure you want to delete category "${category.name}"?`,
+      )
+    ) {
       try {
-        await deleteCategory(category.id).unwrap();
-        notifySuccess('Category Deleted', `Removed "${category.name}"`);
+        await deleteCategory(category._id).unwrap();
+        notifySuccess("Category Deleted", `Removed "${category.name}"`);
       } catch {
         // Handled globally
       }
@@ -71,7 +80,7 @@ export const CategoryList: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {categories.map((category) => (
             <div
-              key={category.id}
+              key={category._id}
               className="bg-surface/50 border border-white/10 p-6 rounded-3xl flex flex-col justify-between space-y-4 hover:border-white/20 transition-all group"
             >
               <div>
@@ -84,7 +93,7 @@ export const CategoryList: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-xs text-gray-400 font-medium line-clamp-2">
-                  {category.description || 'No description provided.'}
+                  {category.description || "No description provided."}
                 </p>
               </div>
 

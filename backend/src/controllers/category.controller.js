@@ -4,7 +4,7 @@ const getCategories = async (req, res) => {
   try {
     const categories = await Category.find({
       organizationId: req.user?.organizationId || req.query.organizationId,
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }).populate('organizationId', 'businessName').lean();
 
     return res.status(200).json({
       success: true,
@@ -46,6 +46,7 @@ const getCategoryById = async (req, res) => {
 };
 
 const createCategory = async (req, res) => {
+  console.log(req.user)
   try {
     const category = await Category.create({
       ...req.body,
