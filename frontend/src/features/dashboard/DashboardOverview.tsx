@@ -1,23 +1,44 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, Package, Users, ArrowUpRight } from 'lucide-react';
-import { useGetDashboardStatsQuery } from '../../services/dashboardApi';
+import { Plus, FileText, Package, Users, ArrowUpRight, BarChart3 } from 'lucide-react';
+import { useGetDashboardSummaryQuery } from '../../services/dashboardApi';
 import { useGetInvoicesQuery } from '../../services/invoiceApi';
 import { AnalyticsCards } from './AnalyticsCards';
 import { RecentActivityList } from './RecentActivityList';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { CardSkeleton, TableSkeleton } from '../../components/shared/Skeleton';
+import { EmptyState } from '../../components/shared/EmptyState';
 import { ErrorState } from '../../components/shared/ErrorState';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { ROUTES } from '../../constants/routes';
 
 export const DashboardOverview: React.FC = () => {
   const navigate = useNavigate();
-  const { data: statsData, isLoading: isStatsLoading, isError: isStatsError, refetch: refetchStats } = useGetDashboardStatsQuery();
+  const {
+    data: summaryResponse,
+    isLoading: isSummaryLoading,
+    isError: isSummaryError,
+    refetch: refetchSummary,
+  } = useGetDashboardSummaryQuery();
+
   const { data: invoicesData, isLoading: isInvoicesLoading } = useGetInvoicesQuery({ page: 1, limit: 5 });
 
-  const stats = statsData?.data?.stats;
-  const recentInvoices = invoicesData?.data?.items || [];
+  const summary = summaryResponse?.data;
+  const stats = summary?.stats || {
+    todaySales: summary?.todaySales || 0,
+    totalRevenue: summary?.totalRevenue || 0,
+    totalInvoices: summary?.totalInvoices || 0,
+    totalCustomers: summary?.totalCustomers || 0,
+    pendingDues: 0,
+    lowStockItemsCount: summary?.lowStockProducts || 0,
+    revenueChange: 0,
+    invoicesChange: 0,
+    customersChange: 0,
+    duesChange: 0,
+  };
+
+  const recentInvoices = summary?.recentInvoices || invoicesData?.data?.items || [];
+  const hasNoData = summary && summary.totalInvoices === 0 && recentInvoices.length === 0;
 
   return (
     <div className="space-y-8">
@@ -27,7 +48,7 @@ export const DashboardOverview: React.FC = () => {
         action={
           <button
             onClick={() => navigate(ROUTES.INVOICE_CREATE)}
-            className="px-5 py-3 bg-cyber-yellow text-dark-text font-black text-xs rounded-2xl hover:scale-105 transition-all flex items-center gap-2 shadow-xl shadow-cyber-yellow/20"
+            className="px-5 py-3 bg-cyber-yellow text-dark-text font-black text-xs rounded-2xl hover:scale-105 transition-all flex items-center gap-2 shadow-xl shadow-cyber-yellow/20 cursor-pointer"
           >
             <Plus size={18} />
             <span>Create Quick Bill</span>
@@ -36,10 +57,14 @@ export const DashboardOverview: React.FC = () => {
       />
 
       {/* Analytics Stat Cards */}
-      {isStatsLoading ? (
+      {isSummaryLoading ? (
         <CardSkeleton count={4} />
-      ) : isStatsError ? (
-        <ErrorState onRetry={refetchStats} />
+      ) : isSummaryError ? (
+        <ErrorState
+          title="Unable to connect to server"
+          message="Failed to load dashboard metrics. Please verify backend server status."
+          onRetry={refetchSummary}
+        />
       ) : (
         <AnalyticsCards stats={stats} />
       )}
@@ -48,7 +73,7 @@ export const DashboardOverview: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <button
           onClick={() => navigate(ROUTES.INVOICE_CREATE)}
-          className="p-5 bg-surface/50 border border-white/10 rounded-3xl hover:border-cyber-yellow/40 transition-all text-left flex items-center justify-between group"
+          className="p-5 bg-surface/50 border border-white/10 rounded-3xl hover:border-cyber-yellow/40 transition-all text-left flex items-center justify-between group cursor-pointer"
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-cyber-yellow/10 border border-cyber-yellow/20 flex items-center justify-center text-cyber-yellow">
@@ -66,7 +91,7 @@ export const DashboardOverview: React.FC = () => {
 
         <button
           onClick={() => navigate(ROUTES.PRODUCTS)}
-          className="p-5 bg-surface/50 border border-white/10 rounded-3xl hover:border-blue-500/40 transition-all text-left flex items-center justify-between group"
+          className="p-5 bg-surface/50 border border-white/10 rounded-3xl hover:border-blue-500/40 transition-all text-left flex items-center justify-between group cursor-pointer"
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
@@ -84,7 +109,7 @@ export const DashboardOverview: React.FC = () => {
 
         <button
           onClick={() => navigate(ROUTES.CUSTOMERS)}
-          className="p-5 bg-surface/50 border border-white/10 rounded-3xl hover:border-emerald-500/40 transition-all text-left flex items-center justify-between group"
+          className="p-5 bg-surface/50 border border-white/10 rounded-3xl hover:border-emerald-500/40 transition-all text-left flex items-center justify-between group cursor-pointer"
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
@@ -111,14 +136,22 @@ export const DashboardOverview: React.FC = () => {
             </h3>
             <button
               onClick={() => navigate(ROUTES.INVOICES)}
-              className="text-xs text-cyber-yellow hover:underline font-bold"
+              className="text-xs text-cyber-yellow hover:underline font-bold cursor-pointer"
             >
               View All Invoices →
             </button>
           </div>
 
-          {isInvoicesLoading ? (
+          {isInvoicesLoading || isSummaryLoading ? (
             <TableSkeleton rows={4} columns={4} />
+          ) : hasNoData ? (
+            <EmptyState
+              title="No sales yet"
+              description="Create your first invoice to see dashboard statistics and daily sales analytics."
+              actionLabel="Create Invoice"
+              onAction={() => navigate(ROUTES.INVOICE_CREATE)}
+              icon={<BarChart3 size={28} />}
+            />
           ) : (
             <div className="bg-surface/50 border border-white/10 rounded-3xl overflow-hidden shadow-xl">
               <table className="w-full text-left text-xs border-collapse">
@@ -139,7 +172,7 @@ export const DashboardOverview: React.FC = () => {
                       <td className="py-3.5 px-4 font-bold text-white">{inv.customerName}</td>
                       <td className="py-3.5 px-4 text-gray-400 font-mono">{formatDate(inv.createdAt)}</td>
                       <td className="py-3.5 px-6 text-right font-black text-white font-mono">
-                        {formatCurrency(inv.grandTotal)}
+                        {formatCurrency(('grandTotal' in inv ? inv.grandTotal : (inv as any).totalAmount) || 0)}
                       </td>
                     </tr>
                   ))}

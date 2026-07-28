@@ -1,7 +1,13 @@
-import React from 'react';
-import { IndianRupee, FileText, Users, AlertCircle, TrendingUp } from 'lucide-react';
-import type { DashboardStats } from '../../types/dashboard.types';
-import { formatCurrency } from '../../utils/formatters';
+import React from "react";
+import {
+  IndianRupee,
+  FileText,
+  Users,
+  AlertCircle,
+  TrendingUp,
+} from "lucide-react";
+import type { DashboardStats } from "../../types/dashboard.types";
+import { formatCurrency } from "../../utils/formatters";
 
 interface AnalyticsCardsProps {
   stats?: DashboardStats;
@@ -10,40 +16,40 @@ interface AnalyticsCardsProps {
 export const AnalyticsCards: React.FC<AnalyticsCardsProps> = ({ stats }) => {
   const cards = [
     {
-      title: 'Total Revenue',
+      title: "Total Revenue",
       value: formatCurrency(stats?.totalRevenue || 0),
-      change: stats?.revenueChange ? `+${stats.revenueChange}%` : '+12.5%',
+      change: stats?.revenueChange ? `+${stats.revenueChange}%` : "+0%",
       icon: IndianRupee,
-      color: 'text-cyber-yellow',
-      bg: 'bg-cyber-yellow/10',
-      border: 'border-cyber-yellow/20',
+      color: "text-cyber-yellow",
+      bg: "bg-cyber-yellow/10",
+      border: "border-cyber-yellow/20",
     },
     {
-      title: 'Invoices Generated',
-      value: (stats?.totalInvoices || 0).toLocaleString('en-IN'),
-      change: stats?.invoicesChange ? `+${stats.invoicesChange}%` : '+8.2%',
+      title: "Invoices Generated",
+      value: (stats?.totalInvoices || 0).toLocaleString("en-IN"),
+      change: stats?.invoicesChange ? `+${stats.invoicesChange}%` : "+0%",
       icon: FileText,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/10',
-      border: 'border-blue-500/20',
+      color: "text-blue-400",
+      bg: "bg-blue-500/10",
+      border: "border-blue-500/20",
     },
     {
-      title: 'Active Customers',
-      value: (stats?.totalCustomers || 0).toLocaleString('en-IN'),
-      change: stats?.customersChange ? `+${stats.customersChange}%` : '+15.4%',
+      title: "Active Customers",
+      value: (stats?.totalCustomers || 0).toLocaleString("en-IN"),
+      change: stats?.customersChange ? `+${stats.customersChange}%` : "+0%",
       icon: Users,
-      color: 'text-emerald-400',
-      bg: 'bg-emerald-500/10',
-      border: 'border-emerald-500/20',
+      color: "text-emerald-400",
+      bg: "bg-emerald-500/10",
+      border: "border-emerald-500/20",
     },
     {
-      title: 'Pending Dues Ledger',
+      title: "Pending Dues Ledger",
       value: formatCurrency(stats?.pendingDues || 0),
-      change: stats?.duesChange ? `-${stats.duesChange}%` : 'Outstanding',
+      change: stats?.duesChange ? `-${stats.duesChange}%` : "Outstanding",
       icon: AlertCircle,
-      color: 'text-amber-400',
-      bg: 'bg-amber-500/10',
-      border: 'border-amber-500/20',
+      color: "text-amber-400",
+      bg: "bg-amber-500/10",
+      border: "border-amber-500/20",
     },
   ];
 
@@ -60,7 +66,9 @@ export const AnalyticsCards: React.FC<AnalyticsCardsProps> = ({ stats }) => {
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 {card.title}
               </span>
-              <div className={`w-10 h-10 rounded-2xl ${card.bg} border ${card.border} flex items-center justify-center ${card.color}`}>
+              <div
+                className={`w-10 h-10 rounded-2xl ${card.bg} border ${card.border} flex items-center justify-center ${card.color}`}
+              >
                 <Icon size={20} />
               </div>
             </div>

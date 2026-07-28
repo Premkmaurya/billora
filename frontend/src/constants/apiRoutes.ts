@@ -28,6 +28,7 @@ export const API_ROUTES = {
     STATUS: (id: string) => `/invoices/${id}/status`,
   },
   DASHBOARD: {
+    SUMMARY: '/dashboard/summary',
     STATS: '/dashboard/stats',
     ACTIVITY: '/dashboard/activity',
   },

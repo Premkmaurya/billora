@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { Product, CreateProductData } from '../../types/product.types';
+import type { Category } from '../../types/category.types';
 import { useGetCategoriesQuery } from '../../services/categoryApi';
 import { useCreateProductMutation, useUpdateProductMutation } from '../../services/productApi';
 import { notifySuccess } from '../../utils/notifications';
@@ -34,7 +35,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
   const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
   const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
 
-  const categories = categoryData?.data || [];
+  const categories: Category[] = categoryData?.data || [];
   const isEditing = Boolean(product);
   const isLoading = isCreating || isUpdating;
 
@@ -142,8 +143,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
             className="w-full bg-surface border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-yellow"
           >
             <option value="">-- Select Category --</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
+            {categories.map((c: Category) => (
+              <option key={c._id} value={c._id}>
                 {c.name}
               </option>
             ))}
@@ -247,7 +248,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2.5 bg-white/5 border border-white/10 text-gray-300 text-xs font-bold rounded-xl hover:text-white"
+          className="px-4 py-2.5 bg-white/5 border border-white/10 text-gray-300 text-xs font-bold rounded-xl hover:text-white cursor-pointer"
         >
           Cancel
         </button>

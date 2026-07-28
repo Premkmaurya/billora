@@ -6,7 +6,6 @@ import {
   Users,
   FileText,
   Tags,
-  Building2,
   Settings,
   LogOut,
   X,

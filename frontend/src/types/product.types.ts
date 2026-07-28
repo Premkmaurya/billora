@@ -2,10 +2,12 @@ import type { PaginationQueryParams } from './api.types';
 
 export interface Product {
   id: string;
+  _id?: string;
   name: string;
   sku: string;
   hsnCode?: string;
   price: number;
+  sellingPrice?: number;
   costPrice?: number;
   stock: number;
   minStockAlert?: number;

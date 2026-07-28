@@ -24,3 +24,31 @@ export interface SalesChartData {
   sales: number;
   invoicesCount: number;
 }
+
+export interface TopProductData {
+  id: string;
+  name: string;
+  sku?: string;
+  sellingPrice: number;
+  stock: number;
+}
+
+export interface DashboardSummaryData {
+  todaySales: number;
+  totalRevenue: number;
+  totalInvoices: number;
+  totalCustomers: number;
+  lowStockProducts: number;
+  recentInvoices: Array<{
+    id: string;
+    invoiceNumber: string;
+    customerName: string;
+    grandTotal: number;
+    totalAmount: number;
+    status: string;
+    createdAt: string;
+  }>;
+  topProducts: TopProductData[];
+  salesChart: SalesChartData[];
+  stats: DashboardStats;
+}
