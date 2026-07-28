@@ -85,37 +85,35 @@ const categoryValidation = [
     .trim()
     .isString()
     .withMessage("Description must be a string"),
-  body("notes")
-    .optional({ values: "falsy" })
-    .trim()
-    .isString()
-    .withMessage("Notes must be a string"),
   body("isActive")
     .optional()
     .isBoolean()
     .withMessage("isActive must be a boolean"),
   body("organizationId")
     .optional({ values: "falsy" })
-    .trim()
-    .notEmpty()
-    .withMessage("Organization ID is required"),
+    .trim(),
   handleValidationErrors,
 ];
 
 const productSchema = z.object({
-  name: z.string().trim().min(1, "Product name is required"),
+  name: z.string().trim().min(1, "Product name is required").optional(),
   normalizedName: z.string().trim().optional(),
   sku: z.string().trim().optional().or(z.literal("")),
   barcode: z.string().trim().optional().or(z.literal("")),
+  hsnCode: z.string().trim().optional().or(z.literal("")),
   description: z.string().trim().optional().or(z.literal("")),
   image: z.string().trim().optional().or(z.literal("")),
   categoryId: z.string().trim().optional().or(z.literal("")),
-  organizationId: z.string().trim().min(1, "Organization ID is required"),
-  sellingPrice: z.coerce.number().positive("Selling price must be greater than 0"),
+  organizationId: z.string().trim().optional().or(z.literal("")),
+  price: z.coerce.number().nonnegative().optional(),
+  sellingPrice: z.coerce.number().nonnegative().optional(),
+  costPrice: z.coerce.number().nonnegative().optional(),
   purchasePrice: z.coerce.number().nonnegative().optional(),
   stock: z.coerce.number().nonnegative().optional(),
-  unit: z.enum(["PIECE", "KG", "GRAM", "LITER", "ML", "PACK", "BOX", "DOZEN"]).optional(),
+  unit: z.string().optional(),
+  taxRate: z.coerce.number().nonnegative().optional(),
   gstRate: z.coerce.number().nonnegative().optional(),
+  minStockAlert: z.coerce.number().nonnegative().optional(),
   lowStockAlert: z.coerce.number().nonnegative().optional(),
   isActive: z.boolean().optional(),
 });
@@ -144,8 +142,9 @@ const customerSchema = z.object({
   phone: z.string().trim().min(1, "Phone number is required"),
   email: z.string().trim().email("Please provide a valid email address").optional().or(z.literal("")),
   gstNumber: z.string().trim().optional().or(z.literal("")),
+  gstin: z.string().trim().optional().or(z.literal("")),
   address: z.string().trim().optional().or(z.literal("")),
-  organizationId: z.string().trim().min(1, "Organization ID is required"),
+  organizationId: z.string().trim().optional().or(z.literal("")),
   isActive: z.boolean().optional(),
 });
 
@@ -169,7 +168,7 @@ const customerValidation = (req, res, next) => {
 
 const invoiceSchema = z.object({
   customerId: z.string().trim().optional().or(z.literal("")),
-  organizationId: z.string().trim().min(1, "Organization ID is required"),
+  organizationId: z.string().trim().optional().or(z.literal("")),
   items: z.array(
     z.object({
       productId: z.string().trim().min(1, "Product ID is required"),

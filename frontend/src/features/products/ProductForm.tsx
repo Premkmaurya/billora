@@ -1,21 +1,23 @@
-import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import type { Product, CreateProductData } from '../../types/product.types';
-import type { Category } from '../../types/category.types';
-import { useGetCategoriesQuery } from '../../services/categoryApi';
-import { useCreateProductMutation, useUpdateProductMutation } from '../../services/productApi';
-import { notifySuccess } from '../../utils/notifications';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import React, { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import type { Product, CreateProductData } from "../../types/product.types";
+import type { Category } from "../../types/category.types";
+import { useGetCategoriesQuery } from "../../services/categoryApi";
+import {
+  useCreateProductMutation,
+  useUpdateProductMutation,
+} from "../../services/productApi";
+import { notifySuccess } from "../../utils/notifications";
+import { LoadingSpinner } from "../../components/shared/LoadingSpinner";
 
 const productSchema = z.object({
-  name: z.string().min(2, 'Product name is required'),
-  sku: z.string().min(2, 'SKU / Barcode is required'),
+  name: z.string().min(2, "Product name is required"),
   hsnCode: z.string().optional(),
-  price: z.number().min(0, 'Price must be non-negative'),
+  sellingPrice: z.number().min(0, "Selling price must be non-negative"),
   costPrice: z.number().min(0).optional(),
-  stock: z.number().int('Stock must be an integer').min(0),
+  stock: z.number().int("Stock must be an integer").min(0),
   minStockAlert: z.number().int().min(0).optional(),
   unit: z.string(),
   taxRate: z.number().min(0).max(100),
@@ -30,12 +32,16 @@ interface ProductFormProps {
   onCancel: () => void;
 }
 
-export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, onCancel }) => {
+export const ProductForm: React.FC<ProductFormProps> = ({
+  product,
+  onSuccess,
+  onCancel,
+}) => {
   const { data: categoryData } = useGetCategoriesQuery();
   const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
   const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
 
-  const categories: Category[] = categoryData?.data || [];
+  const categories: Category[] = categoryData?.categories || [];
   const isEditing = Boolean(product);
   const isLoading = isCreating || isUpdating;
 
@@ -47,16 +53,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
-      name: '',
-      sku: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
-      hsnCode: '',
-      price: 0,
+      name: "",
+      hsnCode: "",
+      sellingPrice: 0,
       costPrice: 0,
       stock: 10,
       minStockAlert: 5,
-      unit: 'PCS',
+      unit: "PCS",
       taxRate: 18,
-      categoryId: '',
+      categoryId: "",
     },
   });
 
@@ -64,40 +69,42 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
     if (product) {
       reset({
         name: product.name,
-        sku: product.sku,
-        hsnCode: product.hsnCode || '',
-        price: product.price,
+        hsnCode: product.hsnCode || "",
+        sellingPrice: product.sellingPrice,
         costPrice: product.costPrice || 0,
         stock: product.stock,
         minStockAlert: product.minStockAlert || 5,
-        unit: product.unit || 'PCS',
-        taxRate: product.taxRate ?? 18,
-        categoryId: product.categoryId || '',
+        unit: product.unit || "PCS",
+        taxRate: product.gstRate ?? 18,
+        categoryId: product.categoryId || "",
       });
     } else {
       reset({
-        name: '',
-        sku: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
-        hsnCode: '',
-        price: 0,
+        name: "",
+        hsnCode: "",
+        sellingPrice: 0,
         costPrice: 0,
         stock: 10,
         minStockAlert: 5,
-        unit: 'PCS',
+        unit: "PCS",
         taxRate: 18,
-        categoryId: '',
+        categoryId: "",
       });
     }
   }, [product, reset]);
 
   const onSubmit = async (data: ProductFormData) => {
     try {
+      const payload = {
+        ...data,
+      } as CreateProductData;
+
       if (isEditing && product) {
-        await updateProduct({ id: product.id, data }).unwrap();
-        notifySuccess('Product Updated', `Updated "${data.name}"`);
+        await updateProduct({ id: product._id, data: payload }).unwrap();
+        notifySuccess("Product Updated", `Updated "${data.name}"`);
       } else {
-        await createProduct(data as CreateProductData).unwrap();
-        notifySuccess('Product Created', `Added "${data.name}" to inventory`);
+        await createProduct(payload).unwrap();
+        notifySuccess("Product Created", `Added "${data.name}" to inventory`);
       }
       onSuccess();
     } catch {
@@ -107,31 +114,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         <div>
           <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
             Product Name *
           </label>
           <input
             type="text"
-            {...register('name')}
+            {...register("name")}
             placeholder="Basmati Rice 5kg"
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-yellow"
           />
-          {errors.name && <p className="mt-1 text-xs text-red-400 font-semibold">{errors.name.message}</p>}
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
-            SKU / Barcode *
-          </label>
-          <input
-            type="text"
-            {...register('sku')}
-            placeholder="SKU-1001"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 font-mono text-sm text-white focus:outline-none focus:border-cyber-yellow"
-          />
-          {errors.sku && <p className="mt-1 text-xs text-red-400 font-semibold">{errors.sku.message}</p>}
+          {errors.name && (
+            <p className="mt-1 text-xs text-red-400 font-semibold">
+              {errors.name.message}
+            </p>
+          )}
         </div>
 
         <div>
@@ -139,7 +137,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
             Category
           </label>
           <select
-            {...register('categoryId')}
+            {...register("categoryId")}
             className="w-full bg-surface border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-yellow"
           >
             <option value="">-- Select Category --</option>
@@ -157,7 +155,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
           </label>
           <input
             type="text"
-            {...register('hsnCode')}
+            {...register("hsnCode")}
             placeholder="1006.30"
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-cyber-yellow"
           />
@@ -170,10 +168,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
           <input
             type="number"
             step="0.01"
-            {...register('price', { valueAsNumber: true })}
+            {...register("sellingPrice", { valueAsNumber: true })}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-yellow"
           />
-          {errors.price && <p className="mt-1 text-xs text-red-400 font-semibold">{errors.price.message}</p>}
+          {errors.sellingPrice && (
+            <p className="mt-1 text-xs text-red-400 font-semibold">
+              {errors.sellingPrice.message}
+            </p>
+          )}
         </div>
 
         <div>
@@ -183,7 +185,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
           <input
             type="number"
             step="0.01"
-            {...register('costPrice', { valueAsNumber: true })}
+            {...register("costPrice", { valueAsNumber: true })}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-yellow"
           />
         </div>
@@ -194,10 +196,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
           </label>
           <input
             type="number"
-            {...register('stock', { valueAsNumber: true })}
+            {...register("stock", { valueAsNumber: true })}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-yellow"
           />
-          {errors.stock && <p className="mt-1 text-xs text-red-400 font-semibold">{errors.stock.message}</p>}
+          {errors.stock && (
+            <p className="mt-1 text-xs text-red-400 font-semibold">
+              {errors.stock.message}
+            </p>
+          )}
         </div>
 
         <div>
@@ -206,7 +212,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
           </label>
           <input
             type="number"
-            {...register('minStockAlert', { valueAsNumber: true })}
+            {...register("minStockAlert", { valueAsNumber: true })}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-yellow"
           />
         </div>
@@ -216,12 +222,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
             Unit
           </label>
           <select
-            {...register('unit')}
+            {...register("unit")}
             className="w-full bg-surface border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-yellow"
           >
             <option value="PCS">PCS (Pieces)</option>
             <option value="KG">KG (Kilograms)</option>
-            <option value="LTR">LTR (Liters)</option>
+            <option value="LITER">LITER (Liters)</option>
             <option value="BOX">BOX (Boxes)</option>
             <option value="PACK">PACK (Packs)</option>
           </select>
@@ -232,7 +238,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
             GST Tax Rate (%) *
           </label>
           <select
-            {...register('taxRate', { valueAsNumber: true })}
+            {...register("taxRate", { valueAsNumber: true })}
             className="w-full bg-surface border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-yellow"
           >
             <option value="0">0% (Exempted)</option>
@@ -257,7 +263,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSuccess, on
           disabled={isLoading}
           className="px-5 py-2.5 bg-cyber-yellow text-dark-text font-black text-xs rounded-xl hover:scale-105 transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
         >
-          {isLoading ? <LoadingSpinner size={16} /> : isEditing ? 'Update Product' : 'Save Product'}
+          {isLoading ? (
+            <LoadingSpinner size={16} />
+          ) : isEditing ? (
+            "Update Product"
+          ) : (
+            "Save Product"
+          )}
         </button>
       </div>
     </form>

@@ -1,24 +1,35 @@
-import React, { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, AlertTriangle } from 'lucide-react';
-import { useGetProductsQuery, useDeleteProductMutation } from '../../services/productApi';
-import { useGetCategoriesQuery } from '../../services/categoryApi';
-import type { Product } from '../../types/product.types';
-import { ProductModal } from './ProductModal';
-import { PageHeader } from '../../components/shared/PageHeader';
-import { TableSkeleton } from '../../components/shared/Skeleton';
-import { EmptyState } from '../../components/shared/EmptyState';
-import { ErrorState } from '../../components/shared/ErrorState';
-import { useDebounce } from '../../hooks/useDebounce';
-import { usePagination } from '../../hooks/usePagination';
-import { formatCurrency } from '../../utils/formatters';
-import { notifySuccess } from '../../utils/notifications';
+import React, { useState } from "react";
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  Package,
+  AlertTriangle,
+} from "lucide-react";
+import {
+  useGetProductsQuery,
+  useDeleteProductMutation,
+} from "../../services/productApi";
+import { useGetCategoriesQuery } from "../../services/categoryApi";
+import type { Product } from "../../types/product.types";
+import { ProductModal } from "./ProductModal";
+import { PageHeader } from "../../components/shared/PageHeader";
+import { TableSkeleton } from "../../components/shared/Skeleton";
+import { EmptyState } from "../../components/shared/EmptyState";
+import { ErrorState } from "../../components/shared/ErrorState";
+import { useDebounce } from "../../hooks/useDebounce";
+import { usePagination } from "../../hooks/usePagination";
+import { formatCurrency } from "../../utils/formatters";
+import { notifySuccess } from "../../utils/notifications";
 
 export const ProductList: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 350);
 
-  const { page, limit, goToNextPage, goToPreviousPage, changePage } = usePagination();
+  const { page, limit, goToNextPage, goToPreviousPage, changePage } =
+    usePagination();
 
   const { data, isLoading, isError, refetch } = useGetProductsQuery({
     page,
@@ -33,11 +44,13 @@ export const ProductList: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
+  console.log(data)
 
   const products = data?.data?.products || [];
   const totalPages = data?.data?.pagination || 1;
   const categories = categoryData?.categories || [];
 
+  console.log(data, products);
   const handleOpenCreate = () => {
     setSelectedProduct(null);
     setIsModalOpen(true);
@@ -51,8 +64,8 @@ export const ProductList: React.FC = () => {
   const handleDelete = async (product: Product) => {
     if (window.confirm(`Delete product "${product.name}"?`)) {
       try {
-        await deleteProduct(product.id).unwrap();
-        notifySuccess('Product Deleted', `Removed "${product.name}"`);
+        await deleteProduct(product._id).unwrap();
+        notifySuccess("Product Deleted", `Removed "${product.name}"`);
       } catch {
         // Handled globally
       }
@@ -78,7 +91,10 @@ export const ProductList: React.FC = () => {
       {/* Filters & Search Toolbar */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between bg-surface/40 p-4 rounded-2xl border border-white/5">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+          <Search
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500"
+            size={18}
+          />
           <input
             type="text"
             value={searchTerm}
@@ -133,21 +149,31 @@ export const ProductList: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {products.map((product) => {
-                  const isLowStock = product.stock <= (product.minStockAlert || 5);
+                  const isLowStock =
+                    product.stock <= (product.minStockAlert || 5);
                   return (
-                    <tr key={product._id} className="hover:bg-white/[0.02] transition-colors">
+                    <tr
+                      key={product._id}
+                      className="hover:bg-white/[0.02] transition-colors"
+                    >
                       <td className="py-4 px-6">
-                        <div className="font-bold text-white text-sm">{product.name}</div>
-                        <span className="text-[10px] text-gray-500 font-mono">Unit: {product.unit}</span>
+                        <div className="font-bold text-white text-sm">
+                          {product.name}
+                        </div>
+                        <span className="text-[10px] text-gray-500 font-mono">
+                          Unit: {product.unit}
+                        </span>
                       </td>
                       <td className="py-4 px-4 font-mono text-gray-400">
                         <div>{product.sku}</div>
                         {product.hsnCode && (
-                          <span className="text-[10px] text-cyber-yellow">HSN: {product.hsnCode}</span>
+                          <span className="text-[10px] text-cyber-yellow">
+                            HSN: {product.hsnCode}
+                          </span>
                         )}
                       </td>
                       <td className="py-4 px-4 text-gray-300">
-                        {product.categoryName || 'Uncategorized'}
+                        {product.categoryName || "Uncategorized"}
                       </td>
                       <td className="py-4 px-4 font-bold text-white">
                         {formatCurrency(product.sellingPrice)}
@@ -156,8 +182,8 @@ export const ProductList: React.FC = () => {
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold font-mono ${
                             isLowStock
-                              ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                              : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                              ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                              : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                           }`}
                         >
                           {isLowStock && <AlertTriangle size={12} />}
@@ -165,7 +191,7 @@ export const ProductList: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-4 px-4 font-bold text-cyber-yellow">
-                        {product.taxRate}%
+                        {product.gstRate}%
                       </td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -196,7 +222,8 @@ export const ProductList: React.FC = () => {
           {totalPages > 1 && (
             <div className="px-6 py-4 border-t border-white/10 flex items-center justify-between">
               <span className="text-xs text-gray-400 font-medium">
-                Page <strong className="text-white">{page}</strong> of <strong className="text-white">{totalPages}</strong>
+                Page <strong className="text-white">{page}</strong> of{" "}
+                <strong className="text-white">{totalPages}</strong>
               </span>
 
               <div className="flex gap-2">
@@ -214,8 +241,8 @@ export const ProductList: React.FC = () => {
                     onClick={() => changePage(i + 1)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
                       page === i + 1
-                        ? 'bg-cyber-yellow text-dark-text'
-                        : 'bg-white/5 border border-white/10 text-gray-300 hover:text-white'
+                        ? "bg-cyber-yellow text-dark-text"
+                        : "bg-white/5 border border-white/10 text-gray-300 hover:text-white"
                     }`}
                   >
                     {i + 1}

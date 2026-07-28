@@ -1,6 +1,21 @@
 const Product = require("../models/product.model");
 const Category = require("../models/category.model");
 
+const normalizeProductOutput = (product) => {
+  if (!product) return product;
+
+  const doc = typeof product.toObject === "function" ? product.toObject() : product;
+
+  if (doc.categoryId && typeof doc.categoryId === "object" && doc.categoryId.name) {
+    doc.categoryName = doc.categoryId.name;
+    doc.categoryId = String(doc.categoryId._id || doc.categoryId);
+  } else {
+    doc.categoryName = undefined;
+  }
+
+  return doc;
+};
+
 const buildProductQuery = async ({ organizationId, search, categoryId, isActive }) => {
   const query = { organizationId };
 
@@ -51,7 +66,7 @@ const findProducts = async ({ organizationId, search, categoryId, isActive, page
   ]);
 
   return {
-    products,
+    products: products.map(normalizeProductOutput),
     pagination: {
       page,
       limit,
@@ -62,7 +77,8 @@ const findProducts = async ({ organizationId, search, categoryId, isActive, page
 };
 
 const findProductById = async ({ id, organizationId }) => {
-  return Product.findOne({ _id: id, organizationId }).populate("categoryId", "name");
+  const product = await Product.findOne({ _id: id, organizationId }).populate("categoryId", "name");
+  return normalizeProductOutput(product);
 };
 
 const createProduct = async (payload) => {

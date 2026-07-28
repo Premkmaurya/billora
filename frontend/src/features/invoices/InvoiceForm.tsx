@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, CheckCircle, Calculator } from 'lucide-react';
-import { useGetProductsQuery } from '../../services/productApi';
-import { useGetCustomersQuery } from '../../services/customerApi';
-import { useCreateInvoiceMutation } from '../../services/invoiceApi';
-import type { CreateInvoiceItemData, PaymentMethod } from '../../types/invoice.types';
-import { PageHeader } from '../../components/shared/PageHeader';
-import { formatCurrency } from '../../utils/formatters';
-import { notifySuccess, notifyError } from '../../utils/notifications';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
-import { ROUTES } from '../../constants/routes';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Trash2, CheckCircle, Calculator } from "lucide-react";
+import { useGetProductsQuery } from "../../services/productApi";
+import { useGetCustomersQuery } from "../../services/customerApi";
+import { useCreateInvoiceMutation } from "../../services/invoiceApi";
+import type {
+  CreateInvoiceItemData,
+  PaymentMethod,
+} from "../../types/invoice.types";
+import { PageHeader } from "../../components/shared/PageHeader";
+import { formatCurrency } from "../../utils/formatters";
+import { notifySuccess, notifyError } from "../../utils/notifications";
+import { LoadingSpinner } from "../../components/shared/LoadingSpinner";
+import { ROUTES } from "../../constants/routes";
 
 export const InvoiceForm: React.FC = () => {
   const navigate = useNavigate();
@@ -17,19 +20,20 @@ export const InvoiceForm: React.FC = () => {
   const { data: customersData } = useGetCustomersQuery({ limit: 100 });
   const [createInvoice, { isLoading }] = useCreateInvoiceMutation();
 
-  const products = productsData?.data?.items || [];
-  const customers = customersData?.data?.items || [];
 
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
-  const [customerName, setCustomerName] = useState('Walk-in Customer');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
+  const products = productsData?.data?.products || [];
+  const customers = customersData?.data?.customers || [];
+
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [customerName, setCustomerName] = useState("Walk-in Customer");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [discount, setDiscount] = useState<number>(0);
   const [paidAmount, setPaidAmount] = useState<number>(0);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState("");
 
   const [items, setItems] = useState<CreateInvoiceItemData[]>([
-    { productId: '', quantity: 1, unitPrice: 0, taxRate: 18 },
+    { productId: "", quantity: 1, unitPrice: 0, taxRate: 18 },
   ]);
 
   const handleCustomerSelect = (id: string) => {
@@ -37,15 +41,19 @@ export const InvoiceForm: React.FC = () => {
     const found = customers.find((c) => c.id === id);
     if (found) {
       setCustomerName(found.name);
-      setCustomerPhone(found.phone || '');
+      setCustomerPhone(found.phone || "");
     }
   };
 
-  const handleItemChange = (index: number, field: keyof CreateInvoiceItemData, value: unknown) => {
+  const handleItemChange = (
+    index: number,
+    field: keyof CreateInvoiceItemData,
+    value: unknown,
+  ) => {
     const updated = [...items];
     const current = { ...updated[index], [field]: value };
 
-    if (field === 'productId') {
+    if (field === "productId") {
       const prod = products.find((p) => p.id === value);
       if (prod) {
         current.unitPrice = prod.price;
@@ -58,7 +66,10 @@ export const InvoiceForm: React.FC = () => {
   };
 
   const addItemRow = () => {
-    setItems([...items, { productId: '', quantity: 1, unitPrice: 0, taxRate: 18 }]);
+    setItems([
+      ...items,
+      { productId: "", quantity: 1, unitPrice: 0, taxRate: 18 },
+    ]);
   };
 
   const removeItemRow = (index: number) => {
@@ -67,10 +78,13 @@ export const InvoiceForm: React.FC = () => {
   };
 
   // Calculations
-  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.quantity * item.unitPrice,
+    0,
+  );
   const taxTotal = items.reduce(
     (sum, item) => sum + (item.quantity * item.unitPrice * item.taxRate) / 100,
-    0
+    0,
   );
   const grandTotal = Math.max(subtotal + taxTotal - discount, 0);
 
@@ -79,7 +93,7 @@ export const InvoiceForm: React.FC = () => {
 
     const validItems = items.filter((i) => i.productId && i.quantity > 0);
     if (validItems.length === 0) {
-      notifyError('Empty Bill', 'Please add at least one valid product item');
+      notifyError("Empty Bill", "Please add at least one valid product item");
       return;
     }
 
@@ -95,7 +109,10 @@ export const InvoiceForm: React.FC = () => {
         notes: notes || undefined,
       }).unwrap();
 
-      notifySuccess('Invoice Generated!', `Printed invoice for ${customerName}`);
+      notifySuccess(
+        "Invoice Generated!",
+        `Printed invoice for ${customerName}`,
+      );
       navigate(ROUTES.INVOICES);
     } catch {
       // Handled globally
@@ -109,7 +126,10 @@ export const InvoiceForm: React.FC = () => {
         subtitle="10-second fast checkout counter bill generator"
       />
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <form
+        onSubmit={handleSubmit}
+        className="grid grid-cols-1 lg:grid-cols-12 gap-8"
+      >
         {/* Left Form: Items & Customer details */}
         <div className="lg:col-span-8 space-y-6">
           {/* Customer Selection */}
@@ -182,11 +202,16 @@ export const InvoiceForm: React.FC = () => {
 
             <div className="space-y-3">
               {items.map((item, index) => (
-                <div key={index} className="grid grid-cols-12 gap-2 items-center bg-white/5 p-3 rounded-2xl">
+                <div
+                  key={index}
+                  className="grid grid-cols-12 gap-2 items-center bg-white/5 p-3 rounded-2xl"
+                >
                   <div className="col-span-5">
                     <select
                       value={item.productId}
-                      onChange={(e) => handleItemChange(index, 'productId', e.target.value)}
+                      onChange={(e) =>
+                        handleItemChange(index, "productId", e.target.value)
+                      }
                       required
                       className="w-full bg-surface border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyber-yellow"
                     >
@@ -204,7 +229,13 @@ export const InvoiceForm: React.FC = () => {
                       type="number"
                       min="1"
                       value={item.quantity}
-                      onChange={(e) => handleItemChange(index, 'quantity', Number(e.target.value))}
+                      onChange={(e) =>
+                        handleItemChange(
+                          index,
+                          "quantity",
+                          Number(e.target.value),
+                        )
+                      }
                       placeholder="Qty"
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyber-yellow font-mono text-center"
                     />
@@ -215,7 +246,13 @@ export const InvoiceForm: React.FC = () => {
                       type="number"
                       step="0.01"
                       value={item.unitPrice}
-                      onChange={(e) => handleItemChange(index, 'unitPrice', Number(e.target.value))}
+                      onChange={(e) =>
+                        handleItemChange(
+                          index,
+                          "unitPrice",
+                          Number(e.target.value),
+                        )
+                      }
                       placeholder="Rate"
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyber-yellow font-mono text-right"
                     />
@@ -270,7 +307,9 @@ export const InvoiceForm: React.FC = () => {
 
             <div className="flex justify-between items-center text-base font-black text-white font-mono">
               <span>Grand Total</span>
-              <span className="text-cyber-yellow text-lg">{formatCurrency(grandTotal)}</span>
+              <span className="text-cyber-yellow text-lg">
+                {formatCurrency(grandTotal)}
+              </span>
             </div>
 
             <div className="space-y-3 pt-2">
@@ -280,7 +319,9 @@ export const InvoiceForm: React.FC = () => {
                 </label>
                 <select
                   value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                  onChange={(e) =>
+                    setPaymentMethod(e.target.value as PaymentMethod)
+                  }
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyber-yellow"
                 >
                   <option value="CASH">Cash Payment</option>
@@ -322,7 +363,13 @@ export const InvoiceForm: React.FC = () => {
               disabled={isLoading}
               className="w-full py-4 bg-cyber-yellow text-dark-text font-black text-sm rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-cyber-yellow/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              {isLoading ? <LoadingSpinner size={18} /> : <><CheckCircle size={18} /> Complete & Issue Bill</>}
+              {isLoading ? (
+                <LoadingSpinner size={18} />
+              ) : (
+                <>
+                  <CheckCircle size={18} /> Complete & Issue Bill
+                </>
+              )}
             </button>
           </div>
         </div>

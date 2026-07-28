@@ -4,8 +4,14 @@ const categorySchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: true,
+      required: [true, "Category name is required"],
       trim: true,
+    },
+    normalizedName: {
+      type: String,
+      required: [true, "Normalized category name is required"],
+      trim: true,
+      lowercase: true,
     },
     description: {
       type: String,
@@ -18,7 +24,7 @@ const categorySchema = new mongoose.Schema(
     },
     organizationId: {
       type: String,
-      required: true,
+      required: [true, "Organization ID is required"],
       trim: true,
     },
   },
@@ -27,7 +33,19 @@ const categorySchema = new mongoose.Schema(
   }
 );
 
-categorySchema.index({ organizationId: 1}, { unique: true });
+// Pre-validate hook to automatically compute normalizedName from name
+categorySchema.pre("validate", function () {
+  if (this.name) {
+    this.normalizedName = this.name.trim().toLowerCase();
+  }
+});
+
+// Single-field indexes
+categorySchema.index({ organizationId: 1 });
+categorySchema.index({ normalizedName: 1 });
+
+// Compound unique index per organization
+categorySchema.index({ organizationId: 1, normalizedName: 1 }, { unique: true });
 
 const Category = mongoose.model("Category", categorySchema);
 

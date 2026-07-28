@@ -1,132 +1,128 @@
-const productService = require("../services/product.service");
+const productModel = require("../models/product.model");
 
-const sendSuccess = (res, statusCode, message, data = {}) => {
-  return res.status(statusCode).json({ success: true, message, data });
+const sendErrorResponse = (res, statusCode, message) => {
+  res.status(statusCode).json({ error: message });
 };
 
-const sendError = (res, statusCode, message, errors = []) => {
-  return res.status(statusCode).json({ success: false, message, errors });
+const sendSuccessResponse = (res, statusCode, data) => {
+  res.status(statusCode).json(data);
 };
 
 const getProducts = async (req, res) => {
   try {
-    const result = await productService.getProducts({
-      organizationId: req.user?.organizationId || req.query.organizationId,
-      search: req.query.search || req.query.q,
-      categoryId: req.query.categoryId,
-      isActive: req.query.isActive === undefined ? true : req.query.isActive === "true",
-      page: Number(req.query.page) || 1,
-      limit: Number(req.query.limit) || 20,
-      sortBy: req.query.sortBy || "createdAt",
-      sortOrder: req.query.sortOrder || "desc",
+    const { organizationId } = req.user;
+    const { search, categoryId, isActive, page, limit, sortBy, sortOrder } =
+      req.query;
+    const products = await productModel.find({
+      organizationId,
     });
-
-    return sendSuccess(res, 200, "Products fetched successfully", result);
+    sendSuccessResponse(res, 200, products);
   } catch (error) {
-    return sendError(res, error.statusCode || 500, error.message || "Failed to fetch products");
-  }
-};
-
-const getProductById = async (req, res) => {
-  try {
-    const product = await productService.getProductById({
-      id: req.params.id,
-      organizationId: req.user?.organizationId || req.query.organizationId,
-    });
-
-    return sendSuccess(res, 200, "Product fetched successfully", product);
-  } catch (error) {
-    return sendError(res, error.statusCode || 500, error.message || "Failed to fetch product");
+    console.error("Error fetching products:", error);
+    sendErrorResponse(res, 500, "Internal Server Error");
   }
 };
 
 const createProduct = async (req, res) => {
   try {
-    const product = await productService.createProduct({
-      input: req.body,
-      organizationId: req.user?.organizationId || req.body.organizationId,
+    const { organizationId } = req.user;
+    const product = await productModel.create({
+      ...req.body,
+      organizationId,
     });
-
-    return sendSuccess(res, 201, "Product created successfully", product);
+    sendSuccessResponse(res, 201, product);
   } catch (error) {
-    return sendError(res, error.statusCode || 500, error.message || "Failed to create product");
+    console.error("Error creating product:", error);
+    sendErrorResponse(res, 500, "Internal Server Error");
   }
 };
 
-const updateProduct = async (req, res) => {
+const getProductById = async (req, res) => {
   try {
-    const product = await productService.updateProduct({
-      id: req.params.id,
-      organizationId: req.user?.organizationId || req.body.organizationId,
-      input: req.body,
-    });
-
-    return sendSuccess(res, 200, "Product updated successfully", product);
+    const { organizationId } = req.user;
+    const { id } = req.params;
+    const product = await productModel.findById({ id, organizationId });
+    if (!product) {
+      return sendErrorResponse(res, 404, "Product not found");
+    }
+    sendSuccessResponse(res, 200, product);
   } catch (error) {
-    return sendError(res, error.statusCode || 500, error.message || "Failed to update product");
-  }
-};
-
-const deleteProduct = async (req, res) => {
-  try {
-    const product = await productService.deleteProduct({
-      id: req.params.id,
-      organizationId: req.user?.organizationId || req.query.organizationId,
-    });
-
-    return sendSuccess(res, 200, "Product deleted successfully", product);
-  } catch (error) {
-    return sendError(res, error.statusCode || 500, error.message || "Failed to delete product");
+    console.error("Error fetching product by ID:", error);
+    sendErrorResponse(res, 500, "Internal Server Error");
   }
 };
 
 const searchProducts = async (req, res) => {
   try {
-    const result = await productService.searchProducts({
-      organizationId: req.user?.organizationId || req.query.organizationId,
-      q: req.query.q || req.query.search,
-      page: Number(req.query.page) || 1,
-      limit: Number(req.query.limit) || 20,
-    });
+    const { organizationId } = req.user;
+    const { q, page, limit } = req.query;
 
-    return sendSuccess(res, 200, "Products searched successfully", result);
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 20;
+    const skipNum = (pageNum - 1) * limitNum;
+
+    const query = { organizationId };
+
+    // 3. Add partial text search if 'q' is provided
+    if (q) {
+      // Searches for 'q' inside the 'name' field (case-insensitive)
+      query.name = { $regex: q, $options: "i" };
+    }
+
+    const products = await productModel
+      .find(query)
+      .skip(skipNum)
+      .limit(limitNum);
+
+    sendSuccessResponse(res, 200, products);
   } catch (error) {
-    return sendError(res, error.statusCode || 500, error.message || "Failed to search products");
+    console.error("Error searching products:", error);
+    sendErrorResponse(res, 500, "Internal Server Error");
   }
 };
 
-const importProducts = async (req, res) => {
+const updateProduct = async (req, res) => {
   try {
-    const products = await productService.importProducts({
-      organizationId: req.user?.organizationId || req.body.organizationId,
-      products: req.body.products || [],
+    const { organizationId } = req.user;
+    const { id } = req.params;
+    const updatedProduct = await productModel.findByIdAndUpdate({
+      _id: id,
+      organizationId,
+      payload: req.body,
     });
-
-    return sendSuccess(res, 201, "Products imported successfully", products);
+    if (!updatedProduct) {
+      return sendErrorResponse(res, 404, "Product not found");
+    }
+    sendSuccessResponse(res, 200, updatedProduct);
   } catch (error) {
-    return sendError(res, error.statusCode || 500, error.message || "Failed to import products");
+    console.error("Error updating product:", error);
+    sendErrorResponse(res, 500, "Internal Server Error");
   }
 };
 
-const exportProducts = async (req, res) => {
+const deleteProduct = async (req, res) => {
   try {
-    const products = await productService.exportProducts({
-      organizationId: req.user?.organizationId || req.query.organizationId,
+    const { organizationId } = req.user;
+    const { id } = req.params;
+    const deletedProduct = await productModel.findByIdAndDelete({
+      _id: id,
+      organizationId,
     });
-
-    return sendSuccess(res, 200, "Products exported successfully", products);
+    if (!deletedProduct) {
+      return sendErrorResponse(res, 404, "Product not found");
+    }
+    sendSuccessResponse(res, 200, { message: "Product deleted successfully" });
   } catch (error) {
-    return sendError(res, error.statusCode || 500, error.message || "Failed to export products");
+    console.error("Error deleting product:", error);
+    sendErrorResponse(res, 500, "Internal Server Error");
   }
 };
 
 module.exports = {
   getProducts,
-  getProductById,
   createProduct,
+  searchProducts,
+  getProductById,
   updateProduct,
   deleteProduct,
-  searchProducts,
-  importProducts,
-  exportProducts,
 };

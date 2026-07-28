@@ -62,7 +62,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSuccess,
   const onSubmit = async (data: CustomerFormData) => {
     try {
       if (isEditing && customer) {
-        await updateCustomer({ id: customer.id, data }).unwrap();
+        await updateCustomer({ id: customer._id, data }).unwrap();
         notifySuccess('Customer Updated', `Updated "${data.name}"`);
       } else {
         await createCustomer(data as CreateCustomerData).unwrap();

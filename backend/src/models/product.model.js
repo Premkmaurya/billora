@@ -78,7 +78,6 @@ const productSchema = new mongoose.Schema(
   }
 );
 
-productSchema.index({ organizationId: 1, sku: 1 }, { unique: true, sparse: true });
 productSchema.index({ barcode: 1 });
 
 const Product = mongoose.model("Product", productSchema);
