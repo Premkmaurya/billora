@@ -13,7 +13,7 @@ const createToken = (user) => {
   );
 };
 
-const sendTokenResponse = (res, user) => {
+const sendTokenResponse = (res, user, message = "Authenticated successfully") => {
   const token = createToken(user);
 
   res.cookie("jwt", token, {
@@ -23,14 +23,19 @@ const sendTokenResponse = (res, user) => {
     maxAge: 24 * 60 * 60 * 1000,
   });
 
+  const userData = {
+    id: String(user.id || user._id),
+    name: user.fullName || user.name || "Store Owner",
+    email: user.email,
+    role: user.role || "ADMIN",
+    organizationId: user.organizationId ? String(user.organizationId) : undefined,
+  };
+
   res.status(200).json({
     success: true,
-    user: {
-      id: user.id || user._id,
-      name: user.fullName || user.name || "Store Owner",
-      email: user.email,
-      role: user.role || "ADMIN",
-    },
+    message,
+    data: { user: userData },
+    user: userData,
   });
 };
 
@@ -42,6 +47,7 @@ const signup = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: "Please provide all required fields (name, email, password)",
+      errors: [{ field: "name", message: "Please provide all required fields" }],
     });
   }
 
@@ -61,7 +67,7 @@ const signup = async (req, res) => {
 
   await newUser.save();
 
-  return sendTokenResponse(res, newUser);
+  return sendTokenResponse(res, newUser, "User registered successfully");
 };
 
 const login = async (req, res) => {
@@ -87,7 +93,7 @@ const login = async (req, res) => {
       .json({ success: false, message: "Invalid credentials" });
   }
 
-  return sendTokenResponse(res, user);
+  return sendTokenResponse(res, user, "Logged in successfully");
 };
 
 const getUser = (req, res) => {
@@ -99,14 +105,19 @@ const getUser = (req, res) => {
       .json({ success: false, message: "Not authenticated" });
   }
 
+  const userData = {
+    id: String(user.id || user._id),
+    name: user.fullName || user.name || "Store Owner",
+    email: user.email,
+    role: user.role || "ADMIN",
+    organizationId: user.organizationId ? String(user.organizationId) : undefined,
+  };
+
   return res.status(200).json({
     success: true,
-    user: {
-      id: user.id || user._id,
-      name: user.fullName || user.name || "Store Owner",
-      email: user.email,
-      role: user.role || "ADMIN",
-    },
+    message: "User profile fetched successfully",
+    data: { user: userData },
+    user: userData,
   });
 };
 
@@ -131,28 +142,31 @@ const update = async (req, res) => {
   }
 
   try {
-    await userModel.updateOne(
-      { _id: user._id },
+    const updatedUser = await userModel.findByIdAndUpdate(
+      user._id,
       { $set: req.body },
       { new: true, runValidators: true }
     );
-    await user.save();
+
+    const userData = {
+      id: String(updatedUser.id || updatedUser._id),
+      name: updatedUser.fullName || updatedUser.name || "Store Owner",
+      email: updatedUser.email,
+      role: updatedUser.role || "ADMIN",
+      organizationId: updatedUser.organizationId ? String(updatedUser.organizationId) : undefined,
+    };
 
     return res.status(200).json({
       success: true,
       message: "User updated successfully",
-      user: {
-        id: user.id || user._id,
-        name: user.fullName || user.name || "Store Owner",
-        email: user.email,
-        role: user.role || "ADMIN",
-      },
+      data: { user: userData },
+      user: userData,
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
       message: "Failed to update user role",
-      error: error.message,
+      errors: [error.message],
     });
   }
 };

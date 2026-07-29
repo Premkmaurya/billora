@@ -44,13 +44,10 @@ export const ProductList: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  console.log(data)
-
-  const products = data?.data?.products || [];
-  const totalPages = data?.data?.pagination || 1;
+  const products = data?.data || [];
+  const totalPages = data?.meta || 1;
   const categories = categoryData?.categories || [];
 
-  console.log(data, products);
   const handleOpenCreate = () => {
     setSelectedProduct(null);
     setIsModalOpen(true);
@@ -139,7 +136,6 @@ export const ProductList: React.FC = () => {
               <thead>
                 <tr className="bg-white/5 border-b border-white/10 text-white font-bold uppercase tracking-wider">
                   <th className="py-4 px-6">Product</th>
-                  <th className="py-4 px-4 font-mono">SKU / HSN</th>
                   <th className="py-4 px-4">Category</th>
                   <th className="py-4 px-4">Price</th>
                   <th className="py-4 px-4">Stock</th>
@@ -163,14 +159,6 @@ export const ProductList: React.FC = () => {
                         <span className="text-[10px] text-gray-500 font-mono">
                           Unit: {product.unit}
                         </span>
-                      </td>
-                      <td className="py-4 px-4 font-mono text-gray-400">
-                        <div>{product.sku}</div>
-                        {product.hsnCode && (
-                          <span className="text-[10px] text-cyber-yellow">
-                            HSN: {product.hsnCode}
-                          </span>
-                        )}
                       </td>
                       <td className="py-4 px-4 text-gray-300">
                         {product.categoryName || "Uncategorized"}

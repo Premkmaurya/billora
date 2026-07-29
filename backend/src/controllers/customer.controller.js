@@ -1,118 +1,176 @@
-const customerModel = require("../models/customer.model");
+const customerRepository = require("../repositories/customer.repository");
 
-const sendSuccess = (res, statusCode, message, data = {}) => {
-  return res.status(statusCode).json({ success: true, message, data });
-};
-
-const sendError = (res, statusCode, message, errors = []) => {
-  return res.status(statusCode).json({ success: false, message, errors });
+const getOrganizationId = (req) => {
+  return String(req.user?.organizationId || req.user?._id || req.user?.id || "");
 };
 
 const getCustomers = async (req, res) => {
   try {
-    const result = await customerModel.find({
-      organizationId: req.user?.organizationId || req.query.organizationId,
+    const organizationId = getOrganizationId(req);
+    const result = await customerRepository.findCustomers({
+      organizationId,
+      ...req.query,
     });
 
-    return sendSuccess(res, 200, "Customers fetched successfully", result);
-  } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to fetch customers",
-    );
-  }
-};
-
-const getCustomerById = async (req, res) => {
-  try {
-    const customer = await customerModel.findById({
-      _id: req.params.id,
-      organizationId: req.user?.organizationId || req.query.organizationId,
+    return res.status(200).json({
+      success: true,
+      message: "Customers fetched successfully",
+      data: result.customers,
+      meta: result.meta,
+      stats: result.stats,
+      customers: result.customers,
+      items: result.customers,
     });
-
-    return sendSuccess(res, 200, "Customer fetched successfully", customer);
   } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to fetch customer",
-    );
-  }
-};
-
-const createCustomer = async (req, res) => {
-  try {
-    const customer = await customerModel.create({
-      ...req.body,
-      organizationId: req.user?.organizationId || req.body.organizationId,
+    console.error("Error fetching customers:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch customers",
+      errors: [error.message],
     });
-
-    return sendSuccess(res, 201, "Customer created successfully", customer);
-  } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to create customer",
-    );
-  }
-};
-
-const updateCustomer = async (req, res) => {
-  try {
-    const customer = await customerModel.findByIdAndUpdate({
-      _id: req.params.id,
-      organizationId: req.user?.organizationId || req.body.organizationId,
-      payload: req.body,
-    });
-
-    return sendSuccess(res, 200, "Customer updated successfully", customer);
-  } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to update customer",
-    );
-  }
-};
-
-const deleteCustomer = async (req, res) => {
-  try {
-    const customer = await customerModel.findByIdAndDelete({
-      _id: req.params.id,
-      organizationId: req.user?.organizationId || req.query.organizationId,
-    });
-
-    return sendSuccess(res, 200, "Customer deleted successfully", customer);
-  } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to delete customer",
-    );
   }
 };
 
 const searchCustomers = async (req, res) => {
   try {
-    const result = await customerModel.find({
-      organizationId: req.user?.organizationId || req.query.organizationId,
-      $or: [
-        { name: { $regex: req.query.q || req.query.search, $options: "i" } },
-        { email: { $regex: req.query.q || req.query.search, $options: "i" } },
-      ],
+    const organizationId = getOrganizationId(req);
+    const result = await customerRepository.searchCustomers({
+      organizationId,
+      ...req.query,
     });
 
-    return sendSuccess(res, 200, "Customers searched successfully", result);
+    return res.status(200).json({
+      success: true,
+      message: "Customers searched successfully",
+      data: result.customers,
+      meta: result.meta,
+      stats: result.stats,
+      customers: result.customers,
+      items: result.customers,
+    });
   } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to search customers",
-    );
+    console.error("Error searching customers:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to search customers",
+      errors: [error.message],
+    });
   }
 };
 
+const getCustomerById = async (req, res) => {
+  try {
+    const organizationId = getOrganizationId(req);
+    const { id } = req.params;
+    const customer = await customerRepository.findCustomerById({ id, organizationId });
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Customer fetched successfully",
+      data: customer,
+      customer,
+    });
+  } catch (error) {
+    console.error("Error fetching customer by ID:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch customer",
+      errors: [error.message],
+    });
+  }
+};
+
+const createCustomer = async (req, res) => {
+  try {
+    const organizationId = getOrganizationId(req);
+    const customer = await customerRepository.createCustomer({
+      ...req.body,
+      organizationId,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Customer created successfully",
+      data: customer,
+      customer,
+    });
+  } catch (error) {
+    console.error("Error creating customer:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create customer",
+      errors: [error.message],
+    });
+  }
+};
+
+const updateCustomer = async (req, res) => {
+  try {
+    const organizationId = getOrganizationId(req);
+    const { id } = req.params;
+    const customer = await customerRepository.updateCustomer({
+      id,
+      organizationId,
+      payload: req.body,
+    });
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Customer updated successfully",
+      data: customer,
+      customer,
+    });
+  } catch (error) {
+    console.error("Error updating customer:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update customer",
+      errors: [error.message],
+    });
+  }
+};
+
+const deleteCustomer = async (req, res) => {
+  try {
+    const organizationId = getOrganizationId(req);
+    const { id } = req.params;
+    const deleted = await customerRepository.softDeleteCustomer({ id, organizationId });
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Customer deleted successfully",
+      data: null,
+    });
+  } catch (error) {
+    console.error("Error deleting customer:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete customer",
+      errors: [error.message],
+    });
+  }
+};
 
 module.exports = {
   getCustomers,

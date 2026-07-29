@@ -1,150 +1,254 @@
-const invoiceModel = require("../models/invoice.model");
+const invoiceRepository = require("../repositories/invoice.repository");
 
-const sendSuccess = (res, statusCode, message, data = {}) => {
-  return res.status(statusCode).json({ success: true, message, data });
-};
-
-const sendError = (res, statusCode, message, errors = []) => {
-  return res.status(statusCode).json({ success: false, message, errors });
+const getOrganizationId = (req) => {
+  return String(req.user?.organizationId || req.user?._id || req.user?.id || "");
 };
 
 const getInvoices = async (req, res) => {
   try {
-    const result = await invoiceModel.find({
-      organizationId: req.user?.organizationId || req.query.organizationId,
+    const organizationId = getOrganizationId(req);
+    const result = await invoiceRepository.findInvoices({
+      organizationId,
+      ...req.query,
     });
 
-    return sendSuccess(res, 200, "Invoices fetched successfully", result);
-  } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to fetch invoices",
-    );
-  }
-};
-
-const getInvoiceById = async (req, res) => {
-  try {
-    const invoice = await invoiceModel.findById({
-      _id: req.params.id,
-      organizationId: req.user?.organizationId || req.query.organizationId,
+    return res.status(200).json({
+      success: true,
+      message: "Invoices fetched successfully",
+      data: result.invoices,
+      meta: result.meta,
+      stats: result.stats,
+      invoices: result.invoices,
+      items: result.invoices,
     });
-
-    return sendSuccess(res, 200, "Invoice fetched successfully", invoice);
   } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to fetch invoice",
-    );
-  }
-};
-
-const createInvoice = async (req, res) => {
-  try {
-    const invoice = await invoiceModel.create({
-      organizationId: req.user?.organizationId || req.body.organizationId,
-      ...req.body,
+    console.error("Error fetching invoices:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch invoices",
+      errors: [error.message],
     });
-
-    return sendSuccess(res, 201, "Invoice created successfully", invoice);
-  } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to create invoice",
-    );
-  }
-};
-
-const updateInvoice = async (req, res) => {
-  try {
-    const invoice = await invoiceModel.findByIdAndUpdate({
-      _id: req.params.id,
-      organizationId: req.user?.organizationId || req.query.organizationId,
-      payload: req.body,
-    });
-
-    return sendSuccess(res, 200, "Invoice updated successfully", invoice);
-  } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to update invoice",
-    );
-  }
-};
-
-const deleteInvoice = async (req, res) => {
-  try {
-    const invoice = await invoiceModel.findByIdAndDelete({
-      _id: req.params.id,
-      organizationId: req.user?.organizationId || req.query.organizationId,
-    });
-
-    return sendSuccess(res, 200, "Invoice deleted successfully", invoice);
-  } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to delete invoice",
-    );
-  }
-};
-
-const cancelInvoice = async (req, res) => {
-  try {
-    const invoice = await invoiceModel.findByIdAndUpdate({
-      _id: req.params.id,
-      organizationId: req.user?.organizationId || req.query.organizationId,
-      payload: { status: "cancelled" },
-    });
-
-    return sendSuccess(res, 200, "Invoice cancelled successfully", invoice);
-  } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to cancel invoice",
-    );
-  }
-};
-
-const duplicateInvoice = async (req, res) => {
-  try {
-    const result = await invoiceModel.findById({
-      _id: req.params.id,
-      organizationId: req.user?.organizationId || req.query.organizationId,
-    });
-
-    return sendSuccess(res, 200, "Invoice duplicated successfully", result);
-  } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to duplicate invoice",
-    );
   }
 };
 
 const searchInvoices = async (req, res) => {
   try {
-    const result = await invoiceModel.find({
-      organizationId: req.user?.organizationId || req.query.organizationId,
-      $or: [
-        { title: { $regex: req.query.q, $options: "i" } },
-        { description: { $regex: req.query.q, $options: "i" } },
-      ],
+    const organizationId = getOrganizationId(req);
+    const result = await invoiceRepository.searchInvoices({
+      organizationId,
+      ...req.query,
     });
 
-    return sendSuccess(res, 200, "Invoices searched successfully", result);
+    return res.status(200).json({
+      success: true,
+      message: "Invoices searched successfully",
+      data: result.invoices,
+      meta: result.meta,
+      stats: result.stats,
+      invoices: result.invoices,
+      items: result.invoices,
+    });
   } catch (error) {
-    return sendError(
-      res,
-      error.statusCode || 500,
-      error.message || "Failed to search invoices",
+    console.error("Error searching invoices:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to search invoices",
+      errors: [error.message],
+    });
+  }
+};
+
+const getInvoiceById = async (req, res) => {
+  try {
+    const organizationId = getOrganizationId(req);
+    const { id } = req.params;
+    const invoice = await invoiceRepository.findInvoiceById({ id, organizationId });
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Invoice fetched successfully",
+      data: invoice,
+      invoice,
+    });
+  } catch (error) {
+    console.error("Error fetching invoice by ID:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch invoice",
+      errors: [error.message],
+    });
+  }
+};
+
+const createInvoice = async (req, res) => {
+  try {
+    const organizationId = getOrganizationId(req);
+    const { items, ...invoicePayload } = req.body || {};
+
+    if (!invoicePayload.invoiceNumber) {
+      invoicePayload.invoiceNumber = await invoiceRepository.createInvoiceNumber(organizationId);
+    }
+
+    const invoice = await invoiceRepository.createInvoice(
+      {
+        ...invoicePayload,
+        organizationId,
+      },
+      items
     );
+
+    return res.status(201).json({
+      success: true,
+      message: "Invoice created successfully",
+      data: invoice,
+      invoice,
+    });
+  } catch (error) {
+    console.error("Error creating invoice:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create invoice",
+      errors: [error.message],
+    });
+  }
+};
+
+const updateInvoice = async (req, res) => {
+  try {
+    const organizationId = getOrganizationId(req);
+    const { id } = req.params;
+    const invoice = await invoiceRepository.updateInvoice({
+      id,
+      organizationId,
+      payload: req.body,
+    });
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Invoice updated successfully",
+      data: invoice,
+      invoice,
+    });
+  } catch (error) {
+    console.error("Error updating invoice:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update invoice",
+      errors: [error.message],
+    });
+  }
+};
+
+const deleteInvoice = async (req, res) => {
+  try {
+    const organizationId = getOrganizationId(req);
+    const { id } = req.params;
+    const deleted = await invoiceRepository.deleteInvoice({ id, organizationId });
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Invoice deleted successfully",
+      data: null,
+    });
+  } catch (error) {
+    console.error("Error deleting invoice:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete invoice",
+      errors: [error.message],
+    });
+  }
+};
+
+const cancelInvoice = async (req, res) => {
+  try {
+    const organizationId = getOrganizationId(req);
+    const { id } = req.params;
+    const invoice = await invoiceRepository.markCancelled({ id, organizationId });
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Invoice cancelled successfully",
+      data: invoice,
+      invoice,
+    });
+  } catch (error) {
+    console.error("Error cancelling invoice:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to cancel invoice",
+      errors: [error.message],
+    });
+  }
+};
+
+const duplicateInvoice = async (req, res) => {
+  try {
+    const organizationId = getOrganizationId(req);
+    const { id } = req.params;
+    const existing = await invoiceRepository.findInvoiceById({ id, organizationId });
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found",
+      });
+    }
+
+    const newInvoiceNumber = await invoiceRepository.createInvoiceNumber(organizationId);
+
+    const { _id, id: oldId, invoiceNumber, createdAt, updatedAt, ...copyData } = existing;
+    const duplicated = await invoiceRepository.createInvoice(
+      {
+        ...copyData,
+        invoiceNumber: newInvoiceNumber,
+        organizationId,
+        status: "DRAFT",
+      },
+      existing.items || []
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Invoice duplicated successfully",
+      data: duplicated,
+      invoice: duplicated,
+    });
+  } catch (error) {
+    console.error("Error duplicating invoice:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to duplicate invoice",
+      errors: [error.message],
+    });
   }
 };
 

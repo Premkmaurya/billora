@@ -32,8 +32,8 @@ export const CustomerList: React.FC = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
 
-  const customers = data?.data?.customers || [];
-  const totalPages = data?.data?.pagination || 1;
+  const customers = data?.customers || [];
+  const totalPages = data?.meta || 1;
 
   const handleOpenCreate = () => {
     setSelectedCustomer(null);

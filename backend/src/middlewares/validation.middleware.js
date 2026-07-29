@@ -8,6 +8,7 @@ const handleValidationErrors = (req, res, next) => {
   if (!errors.isEmpty()) {
     return res.status(400).json({
       success: false,
+      message: "Validation failed",
       errors: errors.array().map((error) => ({
         field: error.path,
         message: error.msg,
@@ -49,6 +50,15 @@ const loginValidation = [
 ];
 
 const businessValidation = [
+  (req, res, next) => {
+    if (!req.body.businessName && req.body.name) {
+      req.body.businessName = req.body.name;
+    }
+    if (!req.body.gstNumber && req.body.gstin) {
+      req.body.gstNumber = req.body.gstin;
+    }
+    next();
+  },
   body("businessName")
     .trim()
     .notEmpty()
