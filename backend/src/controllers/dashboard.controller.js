@@ -3,99 +3,20 @@ const InvoiceItem = require("../models/invoiceItem.model");
 const Product = require("../models/product.model");
 const Customer = require("../models/customer.model");
 const Category = require("../models/category.model");
+const { calculateDashboardDateRange } = require("../utils/dashboardDateRange");
 
 const getOrganizationId = (req) => {
   return String(req.user?.organizationId || req.user?._id || req.user?.id || "");
 };
 
-const resolveDateRange = (query) => {
-  const range = String(query.range || query.dateRange || "today").toLowerCase();
-  const now = new Date();
-
-  let start;
-  let end;
-
-  switch (range) {
-    case "today": {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-      break;
-    }
-    case "yesterday": {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
-      end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
-      break;
-    }
-    case "last7days": {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0);
-      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-      break;
-    }
-    case "last30days": {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0, 0);
-      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-      break;
-    }
-    case "thismonth": {
-      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      break;
-    }
-    case "lastmonth": {
-      start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
-      end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-      break;
-    }
-    case "thisyear": {
-      start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-      end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-      break;
-    }
-    case "custom": {
-      const fromVal = query.from || query.startDate || query.dateFrom;
-      const toVal = query.to || query.endDate || query.dateTo;
-
-      if (fromVal) {
-        start = new Date(fromVal);
-        if (isNaN(start.getTime())) {
-          start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-        } else {
-          start.setHours(0, 0, 0, 0);
-        }
-      } else {
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-      }
-
-      if (toVal) {
-        end = new Date(toVal);
-        if (isNaN(end.getTime())) {
-          end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-        } else {
-          end.setHours(23, 59, 59, 999);
-        }
-      } else {
-        end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-      }
-      break;
-    }
-    default: {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-      break;
-    }
-  }
-
-  return { start, end, range };
-};
-
 const getSummary = async (req, res) => {
   try {
     const organizationId = getOrganizationId(req);
-    const { start, end, range } = resolveDateRange(req.query || {});
+    const { startDate, endDate, range } = calculateDashboardDateRange(req.query || {});
 
     const dateFilterQuery = {
       organizationId,
-      createdAt: { $gte: start, $lte: end },
+      createdAt: { $gte: startDate, $lte: endDate },
     };
 
     const [
@@ -127,9 +48,9 @@ const getSummary = async (req, res) => {
         .lean(),
 
       // 5. Recent entities for activity feed in date range
-      Customer.find({ organizationId, createdAt: { $gte: start, $lte: end } }).sort({ createdAt: -1 }).limit(10).lean(),
-      Product.find({ organizationId, createdAt: { $gte: start, $lte: end } }).sort({ createdAt: -1 }).limit(10).lean(),
-      Category.find({ organizationId, createdAt: { $gte: start, $lte: end } }).sort({ createdAt: -1 }).limit(10).lean(),
+      Customer.find({ organizationId, createdAt: { $gte: startDate, $lte: endDate } }).sort({ createdAt: -1 }).limit(10).lean(),
+      Product.find({ organizationId, createdAt: { $gte: startDate, $lte: endDate } }).sort({ createdAt: -1 }).limit(10).lean(),
+      Category.find({ organizationId, createdAt: { $gte: startDate, $lte: endDate } }).sort({ createdAt: -1 }).limit(10).lean(),
 
       // 6. Top selling products via InvoiceItem aggregation for invoices in date range
       InvoiceItem.aggregate([
@@ -146,7 +67,7 @@ const getSummary = async (req, res) => {
           $match: {
             "invoice.organizationId": organizationId,
             "invoice.status": { $ne: "CANCELLED" },
-            "invoice.createdAt": { $gte: start, $lte: end },
+            "invoice.createdAt": { $gte: startDate, $lte: endDate },
           },
         },
         {
@@ -231,11 +152,11 @@ const getSummary = async (req, res) => {
 
     // Dynamic Sales Chart for selected date range
     const salesChart = [];
-    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
     const diffDays = Math.min(31, Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24))));
 
     for (let i = diffDays - 1; i >= 0; i--) {
-      const d = new Date(end);
+      const d = new Date(endDate);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split("T")[0];
 
@@ -343,8 +264,8 @@ const getSummary = async (req, res) => {
 
     const responseData = {
       range,
-      startDate: start.toISOString(),
-      endDate: end.toISOString(),
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
       overview,
       recentActivities,
       lowStockProducts,
