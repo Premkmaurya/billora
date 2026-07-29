@@ -3,10 +3,13 @@ import { Menu, X, ArrowUpRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { ROUTES } from "../../constants/routes";
 
 export const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isAuthenticated } = useAuth();
   const startFreeButtonRef = useRef<HTMLAnchorElement>(null);
   const arrowOutRef = useRef<SVGSVGElement>(null);
   const arrowInRef = useRef<SVGSVGElement>(null);
@@ -125,28 +128,39 @@ export const Navbar: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="hidden md:flex items-center gap-4">
-            <Link to="/login" className={`text-sm font-medium transition-colors duration-300 ${isScrolled ? 'text-white' : 'text-black'}`}>
-              Login
-            </Link>
-            <Link
-              to="/signup"
-              ref={startFreeButtonRef}
-              className="px-5 py-2.5 bg-cyber-yellow text-dark-text text-sm font-semibold rounded-full hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
-            >
-              <span className="flex items-center gap-2">
-                <span>Start Free</span>
-                <span className="relative w-4 h-4">
-                  <ArrowUpRight
-                    ref={arrowOutRef}
-                    className="absolute inset-0 w-4 h-4"
-                  />
-                  <ArrowUpRight
-                    ref={arrowInRef}
-                    className="absolute inset-0 w-4 h-4 opacity-0"
-                  />
-                </span>
-              </span>
-            </Link>
+            {isAuthenticated ? (
+              <Link
+                to={ROUTES.DASHBOARD}
+                className="px-5 py-2.5 bg-cyber-yellow text-dark-text text-sm font-semibold rounded-full hover:scale-105 active:scale-95 transition-all duration-200"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link to={ROUTES.LOGIN} className={`text-sm font-medium transition-colors duration-300 ${isScrolled ? 'text-white' : 'text-black'}`}>
+                  Login
+                </Link>
+                <Link
+                  to={ROUTES.REGISTER}
+                  ref={startFreeButtonRef}
+                  className="px-5 py-2.5 bg-cyber-yellow text-dark-text text-sm font-semibold rounded-full hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
+                >
+                  <span className="flex items-center gap-2">
+                    <span>Start Free</span>
+                    <span className="relative w-4 h-4">
+                      <ArrowUpRight
+                        ref={arrowOutRef}
+                        className="absolute inset-0 w-4 h-4"
+                      />
+                      <ArrowUpRight
+                        ref={arrowInRef}
+                        className="absolute inset-0 w-4 h-4 opacity-0"
+                      />
+                    </span>
+                  </span>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -199,20 +213,32 @@ export const Navbar: React.FC = () => {
             </div>
             <div className="w-full h-px bg-white/10 my-4" />
             <div className="flex flex-col gap-4">
-              <Link
-                to="/login"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="w-full text-center py-3 border border-white/10 rounded-full font-medium text-white hover:bg-white/5 transition-colors"
-              >
-                Login
-              </Link>
-              <Link
-                to="/signup"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="w-full text-center py-3 bg-cyber-yellow text-dark-text rounded-full font-semibold hover:bg-cyber-yellow/90 transition-colors"
-              >
-                Start Free
-              </Link>
+              {isAuthenticated ? (
+                <Link
+                  to={ROUTES.DASHBOARD}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full text-center py-3 bg-cyber-yellow text-dark-text rounded-full font-semibold hover:bg-cyber-yellow/90 transition-colors"
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    to={ROUTES.LOGIN}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="w-full text-center py-3 border border-white/10 rounded-full font-medium text-white hover:bg-white/5 transition-colors"
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    to={ROUTES.REGISTER}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="w-full text-center py-3 bg-cyber-yellow text-dark-text rounded-full font-semibold hover:bg-cyber-yellow/90 transition-colors"
+                  >
+                    Start Free
+                  </Link>
+                </>
+              )}
             </div>
           </motion.div>
         )}

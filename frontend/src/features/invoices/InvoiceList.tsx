@@ -34,8 +34,8 @@ export const InvoiceList: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
-  const invoices = data?.data?.items || [];
-  const totalPages = data?.data?.totalPages || 1;
+  const invoices = data?.data || [];
+  const totalPages = data?.meta || 1;
 
   const handleViewInvoice = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
@@ -170,7 +170,7 @@ export const InvoiceList: React.FC = () => {
                       {formatDate(invoice.createdAt)}
                     </td>
                     <td className="py-4 px-4 font-black text-white text-sm font-mono">
-                      {formatCurrency(invoice.grandTotal)}
+                      {formatCurrency(invoice.totalAmount)}
                     </td>
                     <td className="py-4 px-4 font-mono text-gray-300">
                       {invoice.paymentMethod}

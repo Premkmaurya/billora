@@ -3,16 +3,70 @@ const InvoiceItem = require("../models/invoiceItem.model");
 const Product = require("../models/product.model");
 const Customer = require("../models/customer.model");
 
+const getItemsForInvoice = async (invoiceId) => {
+  const items = await InvoiceItem.find({ invoiceId })
+    .populate("productId", "name sellingPrice price taxRate gstRate sku hsnCode")
+    .lean();
+
+  return items.map((item) => {
+    const product = item.productId && typeof item.productId === "object" ? item.productId : null;
+    const productName = product?.name || item.productName || "Product Item";
+    const unitPrice = Number(item.unitPrice ?? product?.sellingPrice ?? product?.price ?? 0);
+    const gstRate = Number(item.gstRate ?? product?.gstRate ?? product?.taxRate ?? 0);
+    const qty = Number(item.quantity ?? 1);
+    const taxAmount = Number(item.taxAmount ?? (qty * unitPrice * gstRate) / 100);
+    const total = Number(item.total ?? (qty * unitPrice + taxAmount));
+
+    return {
+      id: String(item._id),
+      _id: String(item._id),
+      invoiceId: String(item.invoiceId),
+      productId: product ? String(product._id) : String(item.productId),
+      productName,
+      sku: product?.sku || item.sku || "",
+      hsnCode: product?.hsnCode || item.hsnCode || "",
+      quantity: qty,
+      unitPrice,
+      sellingPrice: unitPrice,
+      taxRate: gstRate,
+      gstRate,
+      taxAmount,
+      discount: Number(item.discount ?? 0),
+      subtotal: qty * unitPrice,
+      total,
+      product: product ? { id: String(product._id), name: product.name, sku: product.sku || "" } : undefined,
+    };
+  });
+};
+
 const normalizeInvoiceOutput = (invoice) => {
   if (!invoice) return invoice;
   const doc = typeof invoice.toObject === "function" ? invoice.toObject() : invoice;
   if (doc._id && !doc.id) {
     doc.id = String(doc._id);
   }
-  if (doc.customerId && typeof doc.customerId === "object" && doc.customerId.name) {
-    doc.customerName = doc.customerId.name;
-    doc.customerPhone = doc.customerId.phone;
+  if (doc.customerId && typeof doc.customerId === "object") {
+    doc.customer = doc.customerId;
+    doc.customerName = doc.customerId.name || doc.customerName || "Walk-in Customer";
+    doc.customerPhone = doc.customerId.phone || doc.customerPhone || "";
+    doc.customerId = String(doc.customerId._id || doc.customerId);
+  } else if (!doc.customerName) {
+    doc.customerName = "Walk-in Customer";
   }
+
+  doc.subtotal = Number(doc.subtotal ?? 0);
+  doc.taxAmount = Number(doc.taxAmount ?? doc.taxTotal ?? 0);
+  doc.taxTotal = doc.taxAmount;
+  doc.cgst = Number((doc.taxAmount / 2).toFixed(2));
+  doc.sgst = Number((doc.taxAmount / 2).toFixed(2));
+  doc.discount = Number(doc.discountAmount ?? doc.discount ?? 0);
+  doc.discountAmount = doc.discount;
+  doc.grandTotal = Number(doc.totalAmount ?? doc.grandTotal ?? 0);
+  doc.totalAmount = doc.grandTotal;
+  doc.paidAmount = Number(doc.paidAmount ?? 0);
+  doc.dueAmount = Number(doc.dueAmount ?? 0);
+  doc.items = Array.isArray(doc.items) ? doc.items : [];
+
   return doc;
 };
 
@@ -113,7 +167,7 @@ const findInvoices = async ({
       .sort(sort)
       .skip(skipNum)
       .limit(limitNum)
-      .populate("customerId", "name phone")
+      .populate("customerId", "name phone email address")
       .lean(),
     Invoice.countDocuments(query),
     Invoice.countDocuments({ organizationId: String(organizationId), paymentStatus: "PAID" }),
@@ -134,7 +188,14 @@ const findInvoices = async ({
     ]),
   ]);
 
-  const invoices = invoicesRaw.map(normalizeInvoiceOutput);
+  const invoices = await Promise.all(
+    invoicesRaw.map(async (inv) => {
+      const normalized = normalizeInvoiceOutput(inv);
+      normalized.items = await getItemsForInvoice(inv._id);
+      return normalized;
+    })
+  );
+
   const totalPages = Math.ceil(total / limitNum) || (total === 0 ? 0 : 1);
   const todayRevenue = todayRevenueAgg[0]?.total || 0;
 
@@ -159,11 +220,16 @@ const findInvoices = async ({
 };
 
 const findInvoiceById = async ({ id, organizationId }) => {
-  const invoice = await Invoice.findOne({ _id: id, organizationId: String(organizationId) })
-    .populate("customerId", "name phone")
-    .populate({ path: "items", model: "InvoiceItem" })
+  const rawInvoice = await Invoice.findOne({ _id: id, organizationId: String(organizationId) })
+    .populate("customerId", "name phone email address")
     .lean();
-  return normalizeInvoiceOutput(invoice);
+
+  if (!rawInvoice) return null;
+
+  const items = await getItemsForInvoice(rawInvoice._id);
+  const normalized = normalizeInvoiceOutput(rawInvoice);
+  normalized.items = items;
+  return normalized;
 };
 
 const createInvoice = async (payload, items = []) => {
@@ -172,8 +238,7 @@ const createInvoice = async (payload, items = []) => {
     const preparedItems = items.map((item) => ({ ...item, invoiceId: invoice._id }));
     await InvoiceItem.insertMany(preparedItems);
   }
-  const populated = await Invoice.findById(invoice._id).populate("customerId", "name phone").lean();
-  return normalizeInvoiceOutput(populated);
+  return findInvoiceById({ id: invoice._id, organizationId: payload.organizationId });
 };
 
 const updateInvoice = async ({ id, organizationId, payload }) => {
@@ -181,10 +246,10 @@ const updateInvoice = async ({ id, organizationId, payload }) => {
     { _id: id, organizationId: String(organizationId) },
     { $set: payload },
     { new: true, runValidators: true }
-  )
-    .populate("customerId", "name phone")
-    .lean();
-  return normalizeInvoiceOutput(invoice);
+  ).lean();
+
+  if (!invoice) return null;
+  return findInvoiceById({ id: invoice._id, organizationId });
 };
 
 const markCancelled = async ({ id, organizationId }) => {
@@ -192,13 +257,14 @@ const markCancelled = async ({ id, organizationId }) => {
     { _id: id, organizationId: String(organizationId) },
     { $set: { status: "CANCELLED" } },
     { new: true }
-  )
-    .populate("customerId", "name phone")
-    .lean();
-  return normalizeInvoiceOutput(invoice);
+  ).lean();
+
+  if (!invoice) return null;
+  return findInvoiceById({ id: invoice._id, organizationId });
 };
 
 const deleteInvoice = async ({ id, organizationId }) => {
+  await InvoiceItem.deleteMany({ invoiceId: id });
   return Invoice.findOneAndDelete({ _id: id, organizationId: String(organizationId) });
 };
 
@@ -236,4 +302,5 @@ module.exports = {
   updateCustomerAfterInvoice,
   searchInvoices,
   normalizeInvoiceOutput,
+  getItemsForInvoice,
 };

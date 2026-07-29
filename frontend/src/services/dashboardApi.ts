@@ -3,12 +3,19 @@ import { API_ROUTES } from '../constants/apiRoutes';
 import type { DashboardStats, DashboardSummaryData, RecentActivity } from '../types/dashboard.types';
 import type { ApiResponse } from '../types/api.types';
 
+export interface DashboardQueryParams {
+  range?: string;
+  from?: string;
+  to?: string;
+}
+
 export const dashboardApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getDashboardSummary: builder.query<ApiResponse<DashboardSummaryData>, void>({
-      query: () => ({
+    getDashboardSummary: builder.query<ApiResponse<DashboardSummaryData>, DashboardQueryParams | void>({
+      query: (params) => ({
         url: API_ROUTES.DASHBOARD.SUMMARY || '/dashboard/summary',
         method: 'GET',
+        params: params || {},
       }),
       providesTags: ['Dashboard'],
     }),

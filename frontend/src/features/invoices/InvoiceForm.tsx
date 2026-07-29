@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, CheckCircle, Calculator } from "lucide-react";
 import { useGetProductsQuery } from "../../services/productApi";
@@ -20,9 +20,21 @@ export const InvoiceForm: React.FC = () => {
   const { data: customersData } = useGetCustomersQuery({ limit: 100 });
   const [createInvoice, { isLoading }] = useCreateInvoiceMutation();
 
+  const products = useMemo(() => {
+    if (!productsData) return [];
+    if (Array.isArray(productsData.data)) return productsData.data;
+    if (Array.isArray((productsData as any).products)) return (productsData as any).products;
+    if (Array.isArray((productsData as any).items)) return (productsData as any).items;
+    return [];
+  }, [productsData]);
 
-  const products = productsData?.data?.products || [];
-  const customers = customersData?.data?.customers || [];
+  const customers = useMemo(() => {
+    if (!customersData) return [];
+    if (Array.isArray(customersData.data)) return customersData.data;
+    if (Array.isArray((customersData as any).customers)) return (customersData as any).customers;
+    if (Array.isArray((customersData as any).items)) return (customersData as any).items;
+    return [];
+  }, [customersData]);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [customerName, setCustomerName] = useState("Walk-in Customer");
@@ -33,12 +45,12 @@ export const InvoiceForm: React.FC = () => {
   const [notes, setNotes] = useState("");
 
   const [items, setItems] = useState<CreateInvoiceItemData[]>([
-    { productId: "", quantity: 1, unitPrice: 0, taxRate: 18 },
+    { productId: "", quantity: 1, sellingPrice: 0, taxRate: 18, unitPrice: 0 },
   ]);
 
   const handleCustomerSelect = (id: string) => {
     setSelectedCustomerId(id);
-    const found = customers.find((c) => c.id === id);
+    const found = customers.find((c: any) => String(c.id || c._id) === String(id));
     if (found) {
       setCustomerName(found.name);
       setCustomerPhone(found.phone || "");
@@ -54,11 +66,26 @@ export const InvoiceForm: React.FC = () => {
     const current = { ...updated[index], [field]: value };
 
     if (field === "productId") {
-      const prod = products.find((p) => p.id === value);
+      const prod = products.find(
+        (p: any) => String(p.id || p._id) === String(value)
+      );
       if (prod) {
-        current.unitPrice = prod.price;
-        current.taxRate = prod.taxRate;
+        const price = Number(prod.sellingPrice ?? prod.price ?? 0);
+        const rate = Number(prod.gstRate ?? prod.taxRate ?? 0);
+        current.sellingPrice = price;
+        current.unitPrice = price;
+        current.taxRate = rate;
+        current.gstRate = rate;
+      } else {
+        current.sellingPrice = 0;
+        current.unitPrice = 0;
+        current.taxRate = 0;
+        current.gstRate = 0;
       }
+    }
+
+    if (field === "quantity") {
+      current.quantity = Math.max(1, Number(value) || 1);
     }
 
     updated[index] = current;
@@ -68,7 +95,7 @@ export const InvoiceForm: React.FC = () => {
   const addItemRow = () => {
     setItems([
       ...items,
-      { productId: "", quantity: 1, unitPrice: 0, taxRate: 18 },
+      { productId: "", quantity: 1, sellingPrice: 0, taxRate: 18, unitPrice: 0 },
     ]);
   };
 
@@ -77,16 +104,38 @@ export const InvoiceForm: React.FC = () => {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  // Calculations
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.quantity * item.unitPrice,
-    0,
-  );
-  const taxTotal = items.reduce(
-    (sum, item) => sum + (item.quantity * item.unitPrice * item.taxRate) / 100,
-    0,
-  );
-  const grandTotal = Math.max(subtotal + taxTotal - discount, 0);
+  // Memoized Invoice Calculations
+  const { subtotal, taxTotal, grandTotal } = useMemo(() => {
+    let sub = 0;
+    let tax = 0;
+
+    items.forEach((item) => {
+      const qty = Math.max(0, Number(item.quantity ?? 0));
+      const price = Math.max(
+        0,
+        Number(item.sellingPrice ?? item.unitPrice ?? 0)
+      );
+      const rate = Math.max(
+        0,
+        Number(item.taxRate ?? item.gstRate ?? 0)
+      );
+
+      const lineSubtotal = qty * price;
+      const lineTax = (lineSubtotal * rate) / 100;
+
+      sub += lineSubtotal;
+      tax += lineTax;
+    });
+
+    const disc = Math.max(0, Number(discount ?? 0));
+    const grand = Math.max(0, sub + tax - disc);
+
+    return {
+      subtotal: Number.isNaN(sub) ? 0 : sub,
+      taxTotal: Number.isNaN(tax) ? 0 : tax,
+      grandTotal: Number.isNaN(grand) ? 0 : grand,
+    };
+  }, [items, discount]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,13 +147,25 @@ export const InvoiceForm: React.FC = () => {
     }
 
     try {
+      const payloadItems = validItems.map((item) => ({
+        productId: String(item.productId),
+        quantity: Math.max(1, Number(item.quantity || 1)),
+        sellingPrice: Number(item.sellingPrice ?? item.unitPrice ?? 0),
+        unitPrice: Number(item.sellingPrice ?? item.unitPrice ?? 0),
+        taxRate: Number(item.taxRate ?? item.gstRate ?? 0),
+        gstRate: Number(item.taxRate ?? item.gstRate ?? 0),
+        discount: Number(item.discount ?? 0),
+      }));
+
+      const finalPaid = paidAmount > 0 ? Number(paidAmount) : grandTotal;
+
       await createInvoice({
         customerId: selectedCustomerId || undefined,
-        customerName,
+        customerName: customerName || undefined,
         customerPhone: customerPhone || undefined,
-        items: validItems,
-        discount,
-        paidAmount: paidAmount > 0 ? paidAmount : grandTotal,
+        items: payloadItems as any,
+        discount: Number(discount || 0),
+        paidAmount: finalPaid,
         paymentMethod,
         notes: notes || undefined,
       }).unwrap();
@@ -149,8 +210,8 @@ export const InvoiceForm: React.FC = () => {
                   className="w-full bg-surface border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyber-yellow"
                 >
                   <option value="">-- Walk-in / New Customer --</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
+                  {customers.map((c: any) => (
+                    <option key={c.id || c._id} value={c.id || c._id}>
                       {c.name} ({c.phone})
                     </option>
                   ))}
@@ -194,85 +255,78 @@ export const InvoiceForm: React.FC = () => {
               <button
                 type="button"
                 onClick={addItemRow}
-                className="px-3 py-1.5 bg-cyber-yellow/10 text-cyber-yellow border border-cyber-yellow/20 rounded-xl text-xs font-bold hover:bg-cyber-yellow/20 transition-all flex items-center gap-1"
+                className="px-3 py-1.5 bg-cyber-yellow/10 text-cyber-yellow border border-cyber-yellow/20 rounded-xl text-xs font-bold hover:bg-cyber-yellow/20 transition-all flex items-center gap-1 cursor-pointer"
               >
                 <Plus size={14} /> Add Product Row
               </button>
             </div>
 
             <div className="space-y-3">
-              {items.map((item, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-12 gap-2 items-center bg-white/5 p-3 rounded-2xl"
-                >
-                  <div className="col-span-5">
-                    <select
-                      value={item.productId}
-                      onChange={(e) =>
-                        handleItemChange(index, "productId", e.target.value)
-                      }
-                      required
-                      className="w-full bg-surface border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyber-yellow"
-                    >
-                      <option value="">-- Select Product --</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} (₹{p.price}) - Stock: {p.stock}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              {items.map((item, index) => {
+                const itemPrice = Number(item.sellingPrice ?? item.unitPrice ?? 0);
+                const itemQty = Number(item.quantity ?? 1);
+                const itemLineTotal = itemQty * itemPrice;
 
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        handleItemChange(
-                          index,
-                          "quantity",
-                          Number(e.target.value),
-                        )
-                      }
-                      placeholder="Qty"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyber-yellow font-mono text-center"
-                    />
-                  </div>
+                return (
+                  <div
+                    key={index}
+                    className="grid grid-cols-10 gap-2 items-center bg-white/5 p-3 rounded-2xl"
+                  >
+                    <div className="col-span-5">
+                      <select
+                        value={item.productId}
+                        onChange={(e) =>
+                          handleItemChange(index, "productId", e.target.value)
+                        }
+                        required
+                        className="w-full bg-surface border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyber-yellow"
+                      >
+                        <option value="">-- Select Product --</option>
+                        {products.map((p: any) => {
+                          const pId = p.id || p._id;
+                          const pPrice = Number(p.sellingPrice ?? p.price ?? 0);
+                          return (
+                            <option key={pId} value={pId}>
+                              {p.name} (₹{pPrice}) - Stock: {p.stock ?? 0}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
 
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={item.unitPrice}
-                      onChange={(e) =>
-                        handleItemChange(
-                          index,
-                          "unitPrice",
-                          Number(e.target.value),
-                        )
-                      }
-                      placeholder="Rate"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyber-yellow font-mono text-right"
-                    />
-                  </div>
+                    <div className="col-span-2">
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) =>
+                          handleItemChange(
+                            index,
+                            "quantity",
+                            Number(e.target.value),
+                          )
+                        }
+                        placeholder="Qty"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyber-yellow font-mono text-center"
+                      />
+                    </div>
 
-                  <div className="col-span-2 text-right font-mono font-bold text-xs text-white">
-                    {formatCurrency(item.quantity * item.unitPrice)}
-                  </div>
+                    <div className="col-span-2 text-right font-mono font-bold text-xs text-white">
+                      {formatCurrency(Number.isNaN(itemLineTotal) ? 0 : itemLineTotal)}
+                    </div>
 
-                  <div className="col-span-1 text-center">
-                    <button
-                      type="button"
-                      onClick={() => removeItemRow(index)}
-                      className="text-gray-500 hover:text-red-400 p-1"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="col-span-1 text-center">
+                      <button
+                        type="button"
+                        onClick={() => removeItemRow(index)}
+                        className="text-gray-500 hover:text-red-400 p-1 cursor-pointer"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -299,7 +353,7 @@ export const InvoiceForm: React.FC = () => {
                   type="number"
                   min="0"
                   value={discount}
-                  onChange={(e) => setDiscount(Number(e.target.value))}
+                  onChange={(e) => setDiscount(Math.max(0, Number(e.target.value) || 0))}
                   className="w-24 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-right text-xs font-mono text-white focus:outline-none focus:border-cyber-yellow"
                 />
               </div>
@@ -324,11 +378,11 @@ export const InvoiceForm: React.FC = () => {
                   }
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyber-yellow"
                 >
-                  <option value="CASH">Cash Payment</option>
-                  <option value="UPI">UPI Scan & Pay</option>
-                  <option value="CARD">Debit / Credit Card</option>
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
-                  <option value="CREDIT">Customer Credit Ledger</option>
+                  <option className="text-black" value="CASH">Cash Payment</option>
+                  <option className="text-black" value="UPI">UPI Scan & Pay</option>
+                  <option className="text-black" value="CARD">Debit / Credit Card</option>
+                  <option className="text-black" value="BANK_TRANSFER">Bank Transfer</option>
+                  <option className="text-black" value="CREDIT">Customer Credit Ledger</option>
                 </select>
               </div>
 
@@ -339,7 +393,7 @@ export const InvoiceForm: React.FC = () => {
                 <input
                   type="number"
                   value={paidAmount || grandTotal}
-                  onChange={(e) => setPaidAmount(Number(e.target.value))}
+                  onChange={(e) => setPaidAmount(Math.max(0, Number(e.target.value) || 0))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyber-yellow"
                 />
               </div>

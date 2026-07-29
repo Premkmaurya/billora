@@ -5,30 +5,53 @@ export type PaymentMethod = 'CASH' | 'UPI' | 'CARD' | 'BANK_TRANSFER' | 'CREDIT'
 
 export interface InvoiceItem {
   id?: string;
+  _id?: string;
+  invoiceId?: string;
   productId: string;
   productName: string;
   sku?: string;
   hsnCode?: string;
   quantity: number;
   unitPrice: number;
+  sellingPrice?: number;
   taxRate: number;
+  gstRate?: number;
   taxAmount: number;
   subtotal: number;
   total: number;
+  discount?: number;
+  product?: {
+    id?: string;
+    _id?: string;
+    name?: string;
+    sku?: string;
+  };
 }
 
 export interface Invoice {
   id: string;
+  _id?: string;
   invoiceNumber: string;
   customerId?: string;
   customerName: string;
   customerPhone?: string;
+  customer?: {
+    id?: string;
+    _id?: string;
+    name?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+  };
   items: InvoiceItem[];
   subtotal: number;
-  taxTotal: number;
-  cgst: number;
-  sgst: number;
-  discount: number;
+  taxAmount?: number;
+  taxTotal?: number;
+  cgst?: number;
+  sgst?: number;
+  discount?: number;
+  discountAmount?: number;
+  totalAmount?: number;
   grandTotal: number;
   paidAmount: number;
   dueAmount: number;
@@ -42,8 +65,10 @@ export interface Invoice {
 export interface CreateInvoiceItemData {
   productId: string;
   quantity: number;
-  unitPrice: number;
-  taxRate: number;
+  unitPrice?: number;
+  sellingPrice?: number;
+  taxRate?: number;
+  gstRate?: number;
   discount?: number;
 }
 

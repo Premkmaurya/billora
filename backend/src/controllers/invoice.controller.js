@@ -1,4 +1,6 @@
 const invoiceRepository = require("../repositories/invoice.repository");
+const Product = require("../models/product.model");
+const Customer = require("../models/customer.model");
 
 const getOrganizationId = (req) => {
   return String(req.user?.organizationId || req.user?._id || req.user?.id || "");
@@ -90,25 +92,132 @@ const getInvoiceById = async (req, res) => {
 const createInvoice = async (req, res) => {
   try {
     const organizationId = getOrganizationId(req);
-    const { items, ...invoicePayload } = req.body || {};
+    const { items, customerId, customerName, customerPhone, discount, paidAmount, paymentMethod, notes, status } = req.body || {};
 
-    if (!invoicePayload.invoiceNumber) {
-      invoicePayload.invoiceNumber = await invoiceRepository.createInvoiceNumber(organizationId);
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice must contain at least one product item",
+        errors: [{ field: "items", message: "Items array cannot be empty" }],
+      });
     }
 
-    const invoice = await invoiceRepository.createInvoice(
-      {
-        ...invoicePayload,
-        organizationId,
-      },
-      items
+    const productIds = items.map((i) => i.productId).filter(Boolean);
+    const products = await Product.find({
+      _id: { $in: productIds },
+      organizationId,
+    }).lean();
+
+    const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+
+    const preparedItems = [];
+    let calculatedSubtotal = 0;
+    let calculatedTaxTotal = 0;
+
+    for (const item of items) {
+      if (!item.productId) continue;
+      const product = productMap.get(String(item.productId));
+      if (!product) {
+        return res.status(400).json({
+          success: false,
+          message: "Selected product was not found or belongs to another store",
+          errors: [{ field: "productId", message: "Product not found" }],
+        });
+      }
+
+      const qty = Math.max(1, parseInt(item.quantity) || 1);
+
+      if (product.stock < qty) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient stock for product "${product.name}". Available stock: ${product.stock}, requested: ${qty}`,
+          errors: [{ field: "stock", message: `Insufficient stock for ${product.name}` }],
+        });
+      }
+
+      const unitPrice = Number(product.sellingPrice ?? 0);
+      const gstRate = Number(product.gstRate ?? 0);
+      const lineSubtotal = qty * unitPrice;
+      const lineTax = (lineSubtotal * gstRate) / 100;
+      const lineTotal = lineSubtotal + lineTax;
+
+      calculatedSubtotal += lineSubtotal;
+      calculatedTaxTotal += lineTax;
+
+      preparedItems.push({
+        productId: product._id,
+        quantity: qty,
+        unitPrice,
+        discount: Math.max(0, Number(item.discount ?? 0)),
+        gstRate,
+        taxAmount: lineTax,
+        total: lineTotal,
+      });
+    }
+
+    if (preparedItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select at least one valid product",
+      });
+    }
+
+    const discountAmount = Math.max(0, Number(discount ?? 0));
+    const totalAmount = Math.max(0, calculatedSubtotal + calculatedTaxTotal - discountAmount);
+    const amountReceived = Number(paidAmount !== undefined ? paidAmount : totalAmount);
+    const dueAmount = Math.max(0, totalAmount - amountReceived);
+
+    let paymentStatus = "UNPAID";
+    if (amountReceived >= totalAmount && totalAmount > 0) {
+      paymentStatus = "PAID";
+    } else if (amountReceived > 0) {
+      paymentStatus = "PARTIAL";
+    }
+
+    const invoiceNumber = await invoiceRepository.createInvoiceNumber(organizationId);
+
+    const invoicePayload = {
+      invoiceNumber,
+      customerId: customerId ? customerId : null,
+      organizationId,
+      subtotal: calculatedSubtotal,
+      discountAmount,
+      taxAmount: calculatedTaxTotal,
+      totalAmount,
+      paidAmount: amountReceived,
+      dueAmount,
+      paymentMethod: paymentMethod || "CASH",
+      paymentStatus,
+      status: status || "COMPLETED",
+      notes: notes || "",
+    };
+
+    const createdInvoice = await invoiceRepository.createInvoice(
+      invoicePayload,
+      preparedItems
     );
+
+    // Update stock for each product
+    await Promise.all(
+      preparedItems.map((item) =>
+        Product.findByIdAndUpdate(item.productId, {
+          $inc: { stock: -item.quantity },
+        })
+      )
+    );
+
+    // Update customer last purchase
+    if (customerId) {
+      await Customer.findByIdAndUpdate(customerId, {
+        $set: { lastPurchaseAt: new Date() },
+      });
+    }
 
     return res.status(201).json({
       success: true,
       message: "Invoice created successfully",
-      data: invoice,
-      invoice,
+      data: createdInvoice,
+      invoice: createdInvoice,
     });
   } catch (error) {
     console.error("Error creating invoice:", error);

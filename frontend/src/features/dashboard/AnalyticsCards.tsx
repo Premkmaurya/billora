@@ -4,7 +4,6 @@ import {
   FileText,
   Users,
   AlertCircle,
-  TrendingUp,
 } from "lucide-react";
 import type { DashboardStats } from "../../types/dashboard.types";
 import { formatCurrency } from "../../utils/formatters";
@@ -18,7 +17,6 @@ export const AnalyticsCards: React.FC<AnalyticsCardsProps> = ({ stats }) => {
     {
       title: "Total Revenue",
       value: formatCurrency(stats?.totalRevenue || 0),
-      change: stats?.revenueChange ? `+${stats.revenueChange}%` : "+0%",
       icon: IndianRupee,
       color: "text-cyber-yellow",
       bg: "bg-cyber-yellow/10",
@@ -27,7 +25,6 @@ export const AnalyticsCards: React.FC<AnalyticsCardsProps> = ({ stats }) => {
     {
       title: "Invoices Generated",
       value: (stats?.totalInvoices || 0).toLocaleString("en-IN"),
-      change: stats?.invoicesChange ? `+${stats.invoicesChange}%` : "+0%",
       icon: FileText,
       color: "text-blue-400",
       bg: "bg-blue-500/10",
@@ -36,16 +33,14 @@ export const AnalyticsCards: React.FC<AnalyticsCardsProps> = ({ stats }) => {
     {
       title: "Active Customers",
       value: (stats?.totalCustomers || 0).toLocaleString("en-IN"),
-      change: stats?.customersChange ? `+${stats.customersChange}%` : "+0%",
       icon: Users,
       color: "text-emerald-400",
       bg: "bg-emerald-500/10",
       border: "border-emerald-500/20",
     },
     {
-      title: "Pending Dues Ledger",
+      title: "Pending Due Ledger",
       value: formatCurrency(stats?.pendingDues || 0),
-      change: stats?.duesChange ? `-${stats.duesChange}%` : "Outstanding",
       icon: AlertCircle,
       color: "text-amber-400",
       bg: "bg-amber-500/10",
@@ -76,10 +71,6 @@ export const AnalyticsCards: React.FC<AnalyticsCardsProps> = ({ stats }) => {
             <div>
               <div className="text-2xl font-black text-white font-mono tracking-tight">
                 {card.value}
-              </div>
-              <div className="flex items-center gap-1 mt-1 text-[11px] font-bold font-mono text-emerald-400">
-                <TrendingUp size={12} />
-                <span>{card.change} vs last month</span>
               </div>
             </div>
           </div>

@@ -1,87 +1,241 @@
 const Invoice = require("../models/invoice.model");
+const InvoiceItem = require("../models/invoiceItem.model");
 const Product = require("../models/product.model");
 const Customer = require("../models/customer.model");
+const Category = require("../models/category.model");
+
+const getOrganizationId = (req) => {
+  return String(req.user?.organizationId || req.user?._id || req.user?.id || "");
+};
+
+const resolveDateRange = (query) => {
+  const range = String(query.range || query.dateRange || "today").toLowerCase();
+  const now = new Date();
+
+  let start;
+  let end;
+
+  switch (range) {
+    case "today": {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      break;
+    }
+    case "yesterday": {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
+      break;
+    }
+    case "last7days": {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      break;
+    }
+    case "last30days": {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      break;
+    }
+    case "thismonth": {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      break;
+    }
+    case "lastmonth": {
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      break;
+    }
+    case "thisyear": {
+      start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      break;
+    }
+    case "custom": {
+      const fromVal = query.from || query.startDate || query.dateFrom;
+      const toVal = query.to || query.endDate || query.dateTo;
+
+      if (fromVal) {
+        start = new Date(fromVal);
+        if (isNaN(start.getTime())) {
+          start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        } else {
+          start.setHours(0, 0, 0, 0);
+        }
+      } else {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      }
+
+      if (toVal) {
+        end = new Date(toVal);
+        if (isNaN(end.getTime())) {
+          end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        } else {
+          end.setHours(23, 59, 59, 999);
+        }
+      } else {
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      }
+      break;
+    }
+    default: {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      break;
+    }
+  }
+
+  return { start, end, range };
+};
 
 const getSummary = async (req, res) => {
   try {
-    const user = req.user;
-    const organizationId = user.organizationId ? user.organizationId.toString() : user._id.toString();
+    const organizationId = getOrganizationId(req);
+    const { start, end, range } = resolveDateRange(req.query || {});
 
-    // Date range for today (midnight start)
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const dateFilterQuery = {
+      organizationId,
+      createdAt: { $gte: start, $lte: end },
+    };
 
-    // Date range for last month for percentage change calculations
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const [
+      rangeInvoices,
+      totalCustomersCount,
+      activeCustomersCount,
+      totalProductsCount,
+      totalCategoriesCount,
+      lowStockProductsRaw,
+      recentCustomers,
+      recentProducts,
+      recentCategories,
+      topSellingAgg,
+    ] = await Promise.all([
+      // 1. Invoices created in date range
+      Invoice.find(dateFilterQuery).populate("customerId", "name phone").sort({ createdAt: -1 }).lean(),
 
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      // 2. Customer counts (Current system state per requirement)
+      Customer.countDocuments({ organizationId }),
+      Customer.countDocuments({ organizationId, isActive: true }),
 
-    // 1. Invoices & Revenue Calculations
-    const invoices = await Invoice.find({ organizationId }).sort({ createdAt: -1 });
+      // 3. Product & Category counts (Current system state per requirement)
+      Product.countDocuments({ organizationId }),
+      Category.countDocuments({ organizationId }),
 
-    const totalInvoices = invoices.length;
+      // 4. Low stock products (Current system state per requirement)
+      Product.find({ organizationId, isActive: true })
+        .populate("categoryId", "name")
+        .lean(),
+
+      // 5. Recent entities for activity feed in date range
+      Customer.find({ organizationId, createdAt: { $gte: start, $lte: end } }).sort({ createdAt: -1 }).limit(10).lean(),
+      Product.find({ organizationId, createdAt: { $gte: start, $lte: end } }).sort({ createdAt: -1 }).limit(10).lean(),
+      Category.find({ organizationId, createdAt: { $gte: start, $lte: end } }).sort({ createdAt: -1 }).limit(10).lean(),
+
+      // 6. Top selling products via InvoiceItem aggregation for invoices in date range
+      InvoiceItem.aggregate([
+        {
+          $lookup: {
+            from: "invoices",
+            localField: "invoiceId",
+            foreignField: "_id",
+            as: "invoice",
+          },
+        },
+        { $unwind: "$invoice" },
+        {
+          $match: {
+            "invoice.organizationId": organizationId,
+            "invoice.status": { $ne: "CANCELLED" },
+            "invoice.createdAt": { $gte: start, $lte: end },
+          },
+        },
+        {
+          $group: {
+            _id: "$productId",
+            quantitySold: { $sum: "$quantity" },
+            revenue: { $sum: "$total" },
+          },
+        },
+        { $sort: { quantitySold: -1 } },
+        { $limit: 5 },
+        {
+          $lookup: {
+            from: "products",
+            localField: "_id",
+            foreignField: "_id",
+            as: "productDetails",
+          },
+        },
+        { $unwind: { path: "$productDetails", preserveNullAndEmptyArrays: true } },
+      ]),
+    ]);
 
     let totalRevenue = 0;
-    let todaySales = 0;
-    let pendingDues = 0;
+    let pendingDueAmount = 0;
+    const validInvoices = rangeInvoices.filter((inv) => inv.status !== "CANCELLED");
 
-    invoices.forEach((inv) => {
-      const invTotal = inv.totalAmount || inv.subtotal || 0;
-      const invPaid = inv.paidAmount || 0;
-      const invDue = inv.dueAmount || Math.max(invTotal - invPaid, 0);
+    validInvoices.forEach((inv) => {
+      const invTotal = Number(inv.totalAmount ?? inv.subtotal ?? 0);
+      const invPaid = Number(inv.paidAmount ?? (inv.paymentStatus === "PAID" ? invTotal : 0));
+      const invDue = Number(inv.dueAmount ?? Math.max(0, invTotal - invPaid));
 
-      totalRevenue += invTotal;
-      pendingDues += invDue;
+      totalRevenue += invPaid > 0 ? invPaid : (inv.paymentStatus === "PAID" ? invTotal : 0);
+      pendingDueAmount += invDue;
+    });
 
-      if (new Date(inv.createdAt) >= todayStart) {
-        todaySales += invTotal;
+    const lowStockProducts = [];
+    let outOfStockCount = 0;
+
+    lowStockProductsRaw.forEach((prod) => {
+      const threshold = prod.lowStockAlert ?? 5;
+      if (prod.stock <= threshold) {
+        lowStockProducts.push({
+          id: String(prod._id),
+          _id: String(prod._id),
+          name: prod.name,
+          stock: prod.stock,
+          lowStockAlert: threshold,
+          categoryName: prod.categoryId?.name || "General",
+          updatedAt: prod.updatedAt || prod.createdAt,
+        });
+      }
+      if (prod.stock === 0) {
+        outOfStockCount++;
       }
     });
 
-    // 2. Customers Count
-    const totalCustomers = await Customer.countDocuments({ organizationId });
+    const topSellingProducts = topSellingAgg.map((item) => ({
+      id: String(item._id),
+      _id: String(item._id),
+      name: item.productDetails?.name || "Product Item",
+      quantitySold: item.quantitySold,
+      revenue: item.revenue,
+      sellingPrice: item.productDetails?.sellingPrice ?? 0,
+      stock: item.productDetails?.stock ?? 0,
+    }));
 
-    // 3. Low Stock Products Count
-    const products = await Product.find({ organizationId, isActive: true });
-    let lowStockProducts = 0;
-
-    products.forEach((prod) => {
-      const alertLimit = prod.lowStockAlert || 5;
-      if (prod.stock <= alertLimit) {
-        lowStockProducts++;
-      }
-    });
-
-    // 4. Recent Invoices (last 5)
-    const recentInvoices = invoices.slice(0, 5).map((inv) => ({
-      id: inv._id.toString(),
+    const recentInvoices = validInvoices.slice(0, 10).map((inv) => ({
+      id: String(inv._id),
+      _id: String(inv._id),
       invoiceNumber: inv.invoiceNumber,
-      customerId: inv.customerId ? inv.customerId.toString() : null,
-      customerName: inv.customerName || "Walk-in Customer",
-      grandTotal: inv.totalAmount || inv.subtotal || 0,
-      totalAmount: inv.totalAmount || inv.subtotal || 0,
-      paidAmount: inv.paidAmount || 0,
-      dueAmount: inv.dueAmount || 0,
+      customerName: inv.customerId?.name || inv.customerName || "Walk-in Customer",
+      customerPhone: inv.customerId?.phone || inv.customerPhone || "",
+      grandTotal: Number(inv.totalAmount ?? inv.subtotal ?? 0),
+      totalAmount: Number(inv.totalAmount ?? inv.subtotal ?? 0),
+      paidAmount: Number(inv.paidAmount ?? 0),
+      dueAmount: Number(inv.dueAmount ?? 0),
       status: inv.paymentStatus === "PAID" ? "PAID" : inv.status === "CANCELLED" ? "CANCELLED" : "PENDING",
       paymentMethod: inv.paymentMethod || "CASH",
       createdAt: inv.createdAt,
     }));
 
-    // 5. Top Products (sample top 5 products by stock/sales)
-    const topProducts = products.slice(0, 5).map((prod) => ({
-      id: prod._id.toString(),
-      name: prod.name,
-      sku: prod.sku,
-      sellingPrice: prod.sellingPrice,
-      stock: prod.stock,
-    }));
-
-    // 6. Sales Chart (Last 7 Days)
+    // Dynamic Sales Chart for selected date range
     const salesChart = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.min(31, Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24))));
+
+    for (let i = diffDays - 1; i >= 0; i--) {
+      const d = new Date(end);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split("T")[0];
 
@@ -91,47 +245,144 @@ const getSummary = async (req, res) => {
       const dayEnd = new Date(d);
       dayEnd.setHours(23, 59, 59, 999);
 
-      const dayInvoices = invoices.filter(
-        (inv) => new Date(inv.createdAt) >= dayStart && new Date(inv.createdAt) <= dayEnd
-      );
+      const dayInvoices = validInvoices.filter((inv) => {
+        const invDate = new Date(inv.createdAt);
+        return invDate >= dayStart && invDate <= dayEnd;
+      });
 
-      const daySalesTotal = dayInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+      const daySales = dayInvoices.reduce(
+        (sum, inv) => sum + Number(inv.totalAmount ?? inv.subtotal ?? 0),
+        0
+      );
 
       salesChart.push({
         date: dateStr,
-        sales: daySalesTotal,
+        sales: daySales,
         invoicesCount: dayInvoices.length,
       });
     }
 
-    // Consolidated payload satisfying both format requirements
-    const statsPayload = {
-      todaySales,
+    const activities = [];
+
+    validInvoices.slice(0, 10).forEach((inv) => {
+      const custName = inv.customerId?.name || inv.customerName || "Walk-in Customer";
+      const totalAmt = Number(inv.totalAmount ?? inv.subtotal ?? 0);
+      const isPaid = inv.paymentStatus === "PAID";
+
+      activities.push({
+        id: `inv-${inv._id}`,
+        referenceId: String(inv._id),
+        type: isPaid ? "PAYMENT_RECEIVED" : "INVOICE_CREATED",
+        title: isPaid ? `Invoice #${inv.invoiceNumber} Paid` : `Invoice #${inv.invoiceNumber} Created`,
+        description: `₹${totalAmt} via ${inv.paymentMethod || "CASH"} for ${custName}`,
+        createdAt: inv.createdAt,
+        timestamp: inv.createdAt,
+        icon: isPaid ? "CheckCircle2" : "FileText",
+        color: isPaid ? "text-emerald-400" : "text-cyber-yellow",
+      });
+    });
+
+    recentCustomers.forEach((cust) => {
+      activities.push({
+        id: `cust-${cust._id}`,
+        referenceId: String(cust._id),
+        type: "CUSTOMER_ADDED",
+        title: "New Customer Registered",
+        description: `${cust.name} (${cust.phone || "No phone"}) added to directory`,
+        createdAt: cust.createdAt,
+        timestamp: cust.createdAt,
+        icon: "UserPlus",
+        color: "text-blue-400",
+      });
+    });
+
+    recentProducts.forEach((prod) => {
+      const isLow = prod.stock <= (prod.lowStockAlert ?? 5);
+      activities.push({
+        id: `prod-${prod._id}`,
+        referenceId: String(prod._id),
+        type: isLow ? "STOCK_LOW" : "PRODUCT_ADDED",
+        title: isLow ? `Low Stock Warning: ${prod.name}` : `Product Inventory Updated`,
+        description: isLow
+          ? `${prod.name} has only ${prod.stock} units left in stock`
+          : `${prod.name} (Stock: ${prod.stock}, Price: ₹${prod.sellingPrice})`,
+        createdAt: prod.updatedAt || prod.createdAt,
+        timestamp: prod.updatedAt || prod.createdAt,
+        icon: isLow ? "AlertTriangle" : "Package",
+        color: isLow ? "text-red-400" : "text-purple-400",
+      });
+    });
+
+    recentCategories.forEach((cat) => {
+      activities.push({
+        id: `cat-${cat._id}`,
+        referenceId: String(cat._id),
+        type: "CATEGORY_CREATED",
+        title: "Category Created",
+        description: `Category "${cat.name}" added`,
+        createdAt: cat.createdAt,
+        timestamp: cat.createdAt,
+        icon: "FolderPlus",
+        color: "text-amber-400",
+      });
+    });
+
+    activities.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const recentActivities = activities.slice(0, 10);
+
+    const overview = {
       totalRevenue,
-      totalInvoices,
-      totalCustomers,
-      pendingDues,
+      todayRevenue: totalRevenue,
+      monthlyRevenue: totalRevenue,
+      invoiceCount: validInvoices.length,
+      customerCount: activeCustomersCount,
+      productCount: totalProductsCount,
+      categoryCount: totalCategoriesCount,
+      pendingDueAmount,
+    };
+
+    const responseData = {
+      range,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      overview,
+      recentActivities,
       lowStockProducts,
-      lowStockItemsCount: lowStockProducts,
-      revenueChange: 0,
-      invoicesChange: 0,
-      customersChange: 0,
-      duesChange: 0,
+      topSellingProducts,
+      recentInvoices,
+      salesChart,
+      inventorySummary: {
+        totalProducts: totalProductsCount,
+        lowStockCount: lowStockProducts.length,
+        outOfStockCount,
+      },
+      customerSummary: {
+        totalCustomers: totalCustomersCount,
+        activeCustomers: activeCustomersCount,
+      },
+      todaySales: totalRevenue,
+      totalRevenue,
+      totalInvoices: validInvoices.length,
+      totalCustomers: activeCustomersCount,
+      pendingDues: pendingDueAmount,
+      lowStockProductsCount: lowStockProducts.length,
+      lowStockProducts: lowStockProducts.length,
+      lowStockItemsCount: lowStockProducts.length,
+      topProducts: topSellingProducts,
+      stats: {
+        totalRevenue,
+        todaySales: totalRevenue,
+        totalInvoices: validInvoices.length,
+        totalCustomers: activeCustomersCount,
+        pendingDues: pendingDueAmount,
+        lowStockItemsCount: lowStockProducts.length,
+      },
     };
 
     return res.status(200).json({
       success: true,
-      data: {
-        todaySales,
-        totalRevenue,
-        totalInvoices,
-        totalCustomers,
-        lowStockProducts,
-        recentInvoices,
-        topProducts,
-        salesChart,
-        stats: statsPayload,
-      },
+      message: "Dashboard loaded successfully",
+      data: responseData,
     });
   } catch (error) {
     console.error("Dashboard summary error:", error);
@@ -144,30 +395,7 @@ const getSummary = async (req, res) => {
 };
 
 const getActivity = async (req, res) => {
-  try {
-    const user = req.user;
-    const organizationId = user.organizationId ? user.organizationId.toString() : user._id.toString();
-
-    const recentInvoices = await Invoice.find({ organizationId }).sort({ createdAt: -1 }).limit(5);
-
-    const activities = recentInvoices.map((inv) => ({
-      id: inv._id.toString(),
-      type: "INVOICE_CREATED",
-      title: `Invoice #${inv.invoiceNumber} Created`,
-      description: `₹${inv.totalAmount || inv.subtotal || 0} via ${inv.paymentMethod || "CASH"} for ${inv.customerName || "Customer"}`,
-      timestamp: inv.createdAt,
-    }));
-
-    return res.status(200).json({
-      success: true,
-      data: activities,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Failed to load activity feed",
-    });
-  }
+  return getSummary(req, res);
 };
 
 module.exports = {

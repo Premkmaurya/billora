@@ -10,6 +10,13 @@ const normalizeProductOutput = (product) => {
     doc.id = String(doc._id);
   }
 
+  if (doc.price === undefined) {
+    doc.price = Number(doc.sellingPrice ?? 0);
+  }
+  if (doc.taxRate === undefined) {
+    doc.taxRate = Number(doc.gstRate ?? 0);
+  }
+
   if (doc.categoryId && typeof doc.categoryId === "object" && doc.categoryId.name) {
     doc.categoryName = doc.categoryId.name;
     doc.categoryId = String(doc.categoryId._id || doc.categoryId);

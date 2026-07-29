@@ -178,16 +178,23 @@ const customerValidation = (req, res, next) => {
 
 const invoiceSchema = z.object({
   customerId: z.string().trim().optional().or(z.literal("")),
+  customerName: z.string().trim().optional().or(z.literal("")),
+  customerPhone: z.string().trim().optional().or(z.literal("")),
   organizationId: z.string().trim().optional().or(z.literal("")),
   items: z.array(
     z.object({
       productId: z.string().trim().min(1, "Product ID is required"),
       quantity: z.coerce.number().int().positive("Quantity must be greater than 0"),
+      sellingPrice: z.coerce.number().nonnegative().optional(),
+      unitPrice: z.coerce.number().nonnegative().optional(),
+      taxRate: z.coerce.number().nonnegative().optional(),
+      gstRate: z.coerce.number().nonnegative().optional(),
       discount: z.coerce.number().nonnegative().optional(),
     })
   ).min(1, "At least one invoice item is required"),
+  discount: z.coerce.number().nonnegative().optional(),
   paidAmount: z.coerce.number().nonnegative().optional(),
-  paymentMethod: z.enum(["CASH", "UPI", "CARD", "CREDIT"]).optional(),
+  paymentMethod: z.enum(["CASH", "UPI", "CARD", "BANK_TRANSFER", "CREDIT"]).optional(),
   paymentStatus: z.enum(["PAID", "PARTIAL", "UNPAID"]).optional(),
   status: z.enum(["DRAFT", "COMPLETED", "CANCELLED"]).optional(),
   notes: z.string().trim().optional().or(z.literal("")),

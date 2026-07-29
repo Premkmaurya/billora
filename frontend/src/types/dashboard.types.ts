@@ -1,3 +1,64 @@
+export interface DashboardOverviewData {
+  totalRevenue: number;
+  todayRevenue: number;
+  monthlyRevenue: number;
+  invoiceCount: number;
+  customerCount: number;
+  productCount: number;
+  categoryCount: number;
+  pendingDueAmount: number;
+}
+
+export interface RecentActivity {
+  id: string;
+  referenceId?: string;
+  type: 'INVOICE_CREATED' | 'CUSTOMER_ADDED' | 'STOCK_LOW' | 'PRODUCT_ADDED' | 'CATEGORY_CREATED' | 'PAYMENT_RECEIVED' | string;
+  title: string;
+  description: string;
+  createdAt: string;
+  timestamp: string;
+  icon?: string;
+  color?: string;
+}
+
+export interface LowStockProductData {
+  id: string;
+  name: string;
+  stock: number;
+  lowStockAlert: number;
+  categoryName?: string;
+  updatedAt?: string;
+}
+
+export interface TopSellingProductData {
+  id: string;
+  name: string;
+  quantitySold: number;
+  revenue: number;
+  sellingPrice?: number;
+  stock?: number;
+}
+
+export interface RecentInvoiceData {
+  id: string;
+  invoiceNumber: string;
+  customerName: string;
+  customerPhone?: string;
+  grandTotal: number;
+  totalAmount: number;
+  paidAmount?: number;
+  dueAmount?: number;
+  status: string;
+  paymentMethod?: string;
+  createdAt: string;
+}
+
+export interface SalesChartData {
+  date: string;
+  sales: number;
+  invoicesCount: number;
+}
+
 export interface DashboardStats {
   totalRevenue: number;
   revenueChange: number;
@@ -11,44 +72,28 @@ export interface DashboardStats {
   lowStockItemsCount: number;
 }
 
-export interface RecentActivity {
-  id: string;
-  type: 'INVOICE_CREATED' | 'CUSTOMER_ADDED' | 'STOCK_LOW' | 'PAYMENT_RECEIVED';
-  title: string;
-  description: string;
-  timestamp: string;
-}
-
-export interface SalesChartData {
-  date: string;
-  sales: number;
-  invoicesCount: number;
-}
-
-export interface TopProductData {
-  id: string;
-  name: string;
-  sku?: string;
-  sellingPrice: number;
-  stock: number;
-}
-
 export interface DashboardSummaryData {
+  overview: DashboardOverviewData;
+  recentActivities: RecentActivity[];
+  lowStockProducts: LowStockProductData[];
+  topSellingProducts: TopSellingProductData[];
+  recentInvoices: RecentInvoiceData[];
+  salesChart: SalesChartData[];
+  inventorySummary: {
+    totalProducts: number;
+    lowStockCount: number;
+    outOfStockCount: number;
+  };
+  customerSummary: {
+    totalCustomers: number;
+    activeCustomers: number;
+  };
   todaySales: number;
   totalRevenue: number;
   totalInvoices: number;
   totalCustomers: number;
-  lowStockProducts: number;
-  recentInvoices: Array<{
-    id: string;
-    invoiceNumber: string;
-    customerName: string;
-    grandTotal: number;
-    totalAmount: number;
-    status: string;
-    createdAt: string;
-  }>;
-  topProducts: TopProductData[];
-  salesChart: SalesChartData[];
+  pendingDues: number;
+  lowStockProductsCount?: number;
+  topProducts?: TopSellingProductData[];
   stats: DashboardStats;
 }
